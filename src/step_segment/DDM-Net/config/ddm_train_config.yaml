@@ -1,0 +1,103 @@
+######################################################################################################
+# DDM-Net training config for the sewing "step segmentation" dataset.
+# Paths are relative to the repository root (ai4training-aicore-poc/).
+# Generate train/val annotations first with:
+#   python tools/process_step_segments.py
+#   python tools/prepare_ddm_dataset.py --split-mode random --val-ratio 0.2 --seed 42
+######################################################################################################
+
+dataset_config:
+  dataset: "DDMDataset"
+  resolution: 224
+  frames_per_side: 5
+  downsample: 1
+  min_change_dur: 0.3
+  num_classes: 2
+  seed: 42
+  video_backend: "pyav"
+
+  train_config:
+    mode: "train"
+    anno_path: data/ddm_dataset/train_annotation.json
+    data_root: data/ddm_dataset/videos
+    augmentation:
+      RandomResize:
+        enabled: true
+        interpolation: [bilinear, bicubic, nearest]
+        antialias_prob: 0.5
+      ColorJitter:
+        enabled: true
+        brightness: 0.25
+        contrast: 0.3
+        saturation: 0.15
+        hue: 0.02
+      GaussianBlur:
+        enabled: true
+        apply_prob: 0.5
+        kernel_size: 3
+        sigma: [0.1, 0.5]
+
+  val_config:
+    mode: "val"
+    anno_path: data/ddm_dataset/val_annotation.json
+    data_root: data/ddm_dataset/videos
+    temporal_stride: 1
+
+  batch_size: 8
+  workers: 4
+
+# ============================================================================
+# Model Configuration
+# ============================================================================
+model_config:
+  model_name: "multiframes_resnet"
+  backbone: "resnet50"
+  pretrained: true
+  freeze_backbone: false
+  num_classes: 2
+  img_size: null
+
+# ============================================================================
+# Training Configuration
+# ============================================================================
+training_config:
+  optimizer: "adamw"
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  momentum: 0.9
+  opt_eps: null
+  opt_betas: null
+
+  scheduler: "step"
+  warmup_epochs: 0
+  warmup_lr: 0.0001
+  decay_epochs: 2
+  decay_rate: 0.5
+  min_lr: 1e-10
+  patience_epochs: 10
+
+  epochs: 30
+  eval_freq: 1
+  seed: 42
+
+  clip_grad: null
+  clip_mode: "norm"
+
+  amp: true
+
+  model_ema: true
+  model_ema_decay: 0.999
+  model_ema_start_epoch: 10
+
+  eval_metric: "f1_score"
+  save_visualizations: true
+  log_interval: 50
+
+  output: "./output_lightning"
+  exp_name: "step_segment_ddm_net"
+  resume: null
+  checkpoint_top_k: 3
+
+  num_gpus: 1
+  num_nodes: 1
+  strategy: "auto"
