@@ -20,6 +20,7 @@
 ######################################################################################################
 
 import os
+import gc
 import math
 import time
 import json
@@ -94,6 +95,7 @@ class DecordStreamingReader:
         end_time: Optional[float] = None,
         resolution: Union[Tuple[int, int], int] = DEFAULT_RESOLUTION,
         transform: Optional[Callable] = None,
+        num_threads: int = 1,
     ):
         self.path = path
         self.frames_per_side = frames_per_side
@@ -115,8 +117,13 @@ class DecordStreamingReader:
                 transforms.Normalize(mean=DEFAULT_MEAN, std=DEFAULT_STD),
             ])
 
-        # num_threads=0 is crucial to prevent interference with DataLoader workers
-        self.vr = VideoReader(path, ctx=cpu(0), num_threads=0)
+        # num_threads=1 (instead of decord's "auto" 0) caps the internal
+        # packet/frame cache decord keeps in native (non-Python-tracked) memory.
+        # With num_threads=0 decord over-allocates read-ahead buffers per
+        # VideoReader, and those buffers are not visible to Python's GC, which
+        # is the main driver of the unbounded RAM growth seen during dense
+        # (frame-by-frame) validation streaming.
+        self.vr = VideoReader(path, ctx=cpu(0), num_threads=num_threads)
         
         self.fps = self.vr.get_avg_fps()
         self.total_frames = len(self.vr)
@@ -167,35 +174,54 @@ class DecordStreamingReader:
         frame_indices = np.clip(frame_indices, 0, self.total_frames - 1).tolist()
         return frame_indices
 
+    def close(self):
+        """Explicitly release the native decord reader and decoded buffers.
+
+        decord's C++ backend keeps its own packet/frame cache that is not
+        tracked by Python's refcounting the same way a plain object is; simply
+        letting the reader go out of scope can leave that native memory
+        resident until the next full GC cycle. Dropping the reference here and
+        forcing a collection makes the release deterministic, which matters a
+        lot when we create/discard thousands of readers during a dense
+        (frame-by-frame) validation pass.
+        """
+        self.vr = None
+        self.tensor_buffer = None
+
     def __iter__(self):
         step_size = self.downsample * self.temporal_stride
         buffer_size = self.tensor_buffer.shape[0]
 
-        while self.current_center_idx < self.end_frame_idx:
-            # 1. return current result
-            yield {
-                "inp": self.tensor_buffer.clone(),
-                "current_ids": self.current_center_idx
-            }
+        try:
+            while self.current_center_idx < self.end_frame_idx:
+                # 1. return current result
+                yield {
+                    "inp": self.tensor_buffer.clone(),
+                    "current_ids": self.current_center_idx
+                }
 
-            # 2. move to next center index
-            self.current_center_idx += step_size
-            if self.current_center_idx >= self.end_frame_idx:
-                break
-            
-            # 3. caculate all indices for next sliding window
-            frame_indices = self._get_clipped_indices()
-            
-            # 4. update tensor buffer for next iteration
-            if self.temporal_stride < buffer_size:
-                # a. buffer left shift
-                self.tensor_buffer[:-self.temporal_stride] = self.tensor_buffer[self.temporal_stride:].clone()
-                # b. fill in new frame features
-                new_frame_indices = frame_indices[-self.temporal_stride:]
-                new_frames = self.vr.get_batch(new_frame_indices)
-                self.tensor_buffer[-self.temporal_stride:] = self._process_frames(new_frames)
-            else:
-                self._fill_buffer(frame_indices=frame_indices)
+                # 2. move to next center index
+                self.current_center_idx += step_size
+                if self.current_center_idx >= self.end_frame_idx:
+                    break
+
+                # 3. caculate all indices for next sliding window
+                frame_indices = self._get_clipped_indices()
+
+                # 4. update tensor buffer for next iteration
+                if self.temporal_stride < buffer_size:
+                    # a. buffer left shift
+                    self.tensor_buffer[:-self.temporal_stride] = self.tensor_buffer[self.temporal_stride:].clone()
+                    # b. fill in new frame features
+                    new_frame_indices = frame_indices[-self.temporal_stride:]
+                    new_frames = self.vr.get_batch(new_frame_indices)
+                    self.tensor_buffer[-self.temporal_stride:] = self._process_frames(new_frames)
+                else:
+                    self._fill_buffer(frame_indices=frame_indices)
+        finally:
+            # Always release the reader, even if the generator is closed early
+            # (e.g. dataloader worker shutdown) or an exception is raised.
+            self.close()
 
 
 class DDMValStreamingDataset(IterableDataset):
@@ -212,6 +238,8 @@ class DDMValStreamingDataset(IterableDataset):
         enable_load_balancing: bool = True,
         transform: Optional = None,
         verbose: bool = False,
+        decord_num_threads: int = 1,
+        gc_every_n_clips: int = 1,
     ):
         super().__init__()
         self.frames_per_side = frames_per_side
@@ -222,6 +250,15 @@ class DDMValStreamingDataset(IterableDataset):
         self.transform = transform
         self.verbose = verbose
         self.video_info = {}
+        # Reader concurrency / memory controls (see "RAM growth during
+        # validation" issue): smaller chunk_duration forces the streaming
+        # reader to be recreated (and its native buffers released) more
+        # often instead of holding one VideoReader open for an entire
+        # multi-minute video, and gc_every_n_clips forces a Python GC pass
+        # right after that release so freed native memory is returned
+        # promptly instead of accumulating for the whole epoch.
+        self.decord_num_threads = decord_num_threads
+        self.gc_every_n_clips = max(1, gc_every_n_clips)
         
         self.video_clip_configs: List[Dict] = [] 
         
@@ -448,7 +485,8 @@ class DDMValStreamingDataset(IterableDataset):
                 print("\n".join(log_lines))
 
         # 5. Iterate
-        for cfg in my_configs:
+        for clip_idx, cfg in enumerate(my_configs):
+            reader = None
             try:
                 reader = DecordStreamingReader(
                     path=cfg['path'],
@@ -458,9 +496,10 @@ class DDMValStreamingDataset(IterableDataset):
                     start_time=cfg['start'],
                     end_time=cfg['end'],
                     resolution=self.resolution,
-                    transform=self.transform
+                    transform=self.transform,
+                    num_threads=self.decord_num_threads,
                 )
-                
+
                 for buffer_state in reader:
                     video_id = cfg['video_id']
                     current_ids = buffer_state["current_ids"]
@@ -474,6 +513,16 @@ class DDMValStreamingDataset(IterableDataset):
             except Exception as e:
                 print(f"⚠️ Error [Worker {my_global_id}] reading {cfg['path']}: {e}")
                 continue
-    
+            finally:
+                # Release the decord VideoReader + decoded frame buffer as soon
+                # as we're done with this clip, and force a GC pass every few
+                # clips so the freed native (C++) memory is actually returned
+                # to the OS instead of accumulating for the rest of the epoch.
+                if reader is not None:
+                    reader.close()
+                    del reader
+                if (clip_idx + 1) % self.gc_every_n_clips == 0:
+                    gc.collect()
+
     def collate_fn(self, batch):
         return default_collate(batch)

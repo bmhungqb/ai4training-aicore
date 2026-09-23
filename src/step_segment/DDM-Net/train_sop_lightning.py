@@ -30,6 +30,7 @@ All configuration logic is in config/config.py for better organization.
 
 import os
 import sys
+import gc
 from typing import Dict, Any, Optional
 from datetime import datetime
 import json
@@ -203,6 +204,16 @@ class SOPLightningModule(L.LightningModule):
         # Logging
         self.log('val/loss', loss, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=batch_size)
         self.log('val/acc', acc1, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=batch_size)
+
+        # Safety net on top of the dataset-level fixes: validation streams
+        # hundreds/thousands of steps per epoch, and both the CUDA caching
+        # allocator and any lingering Python reference cycles (e.g. from the
+        # video decoder) can otherwise accumulate for the whole epoch instead
+        # of being reclaimed incrementally.
+        if batch_idx > 0 and batch_idx % 200 == 0:
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
         return results
 

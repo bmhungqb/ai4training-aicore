@@ -42,6 +42,14 @@ dataset_config:
     anno_path: data/ddm_dataset/val_annotation.json
     data_root: data/ddm_dataset/videos
     temporal_stride: 1
+    # --- RAM-growth mitigation (see issues/step_segment_validating_issues.md) ---
+    # Validation streams every frame of every val video (dense, temporal_stride=1),
+    # unlike training's sparse sampling, so it needs its own, more conservative
+    # worker/reader settings to avoid System RAM OOM.
+    workers: 1               # fewer processes -> fewer duplicated decord buffers
+    chunk_duration: 60.0     # seconds; forces periodic reader re-creation/release
+    decord_num_threads: 1    # caps decord's internal native read-ahead cache
+    gc_every_n_clips: 1      # force a GC pass after every clip is released
 
   batch_size: 4
   workers: 2

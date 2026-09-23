@@ -50,6 +50,12 @@ class DDMDataModule(L.LightningDataModule):
         self.dataset_config = dataset_config
         self.batch_size = dataset_config["batch_size"]
         self.num_workers = dataset_config["workers"]
+        # Validation streams every frame of every val video (dense sampling),
+        # which is far more memory-hungry per worker than training's sparse
+        # sampling. Allow a lower, independently-tunable worker count so we
+        # don't multiply the native decord buffer across several processes;
+        # defaults to the shared `workers` value for backward compatibility.
+        self.val_num_workers = dataset_config["val_config"].get("workers", self.num_workers)
         self.resolution = dataset_config["resolution"]
         if isinstance(self.resolution, int):
             self.resolution = (self.resolution, self.resolution)
@@ -88,10 +94,17 @@ class DDMDataModule(L.LightningDataModule):
                     downsample=self.dataset_config["downsample"],
                     temporal_stride=self.dataset_config["val_config"]["temporal_stride"],
                     min_change_dur=self.dataset_config["min_change_dur"],
-                    chunk_duration=None,
+                    # Split long videos into bounded chunks instead of one
+                    # streaming reader per full video: this forces the decord
+                    # VideoReader (and its native frame cache) to be recreated
+                    # periodically, which is what actually bounds the RAM
+                    # growth during dense validation streaming.
+                    chunk_duration=self.dataset_config["val_config"].get("chunk_duration", 60.0),
                     resolution=self.resolution,
                     enable_load_balancing=True,
                     transform=validation_transform,
+                    decord_num_threads=self.dataset_config["val_config"].get("decord_num_threads", 1),
+                    gc_every_n_clips=self.dataset_config["val_config"].get("gc_every_n_clips", 1),
                 )
             else:
                 raise NotImplementedError(
@@ -133,8 +146,13 @@ class DDMDataModule(L.LightningDataModule):
             self.val_dataset,
             batch_size=self.batch_size,
             shuffle=False,  # Lightning will add DistributedSampler (shuffle=False) in DDP mode
-            num_workers=self.num_workers,
+            num_workers=self.val_num_workers,
             collate_fn=self.val_dataset.collate_fn,
-            pin_memory=True,
+            # pin_memory + persistent_workers add extra host-RAM overhead on
+            # top of decord's own buffers; validation is not throughput
+            # sensitive the way training is, so keep it lean instead.
+            pin_memory=False,
+            persistent_workers=False,
+            prefetch_factor=2 if self.val_num_workers > 0 else None,
         )
         return val_loader
