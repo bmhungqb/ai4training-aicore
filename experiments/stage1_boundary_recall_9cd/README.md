@@ -115,5 +115,6 @@ Trong file `action_segments.json`:
 - **File Excel chi tiết**: [`evaluation_result_9cd.xlsx`](evaluation_result_9cd.xlsx) (chứa Sheet tổng quan và Sheet chi tiết đối soát từng bước trong 349 bước).
 - **Lệnh tái hiện kết quả**:
   ```bash
-  uv run python -m tools.eval_boundary_recall --no-tune --exclude-cd 11 --out eval_report.json
+  uv run python -m tools.eval_boundary_recall --no-tune --exclude-cd 11 --out experiments/stage1_boundary_recall_9cd/eval_report.json
+  uv run python -m tools.export_eval_to_excel
   ```

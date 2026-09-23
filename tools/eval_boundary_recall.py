@@ -18,7 +18,7 @@ Usage:
   python -m tools.eval_boundary_recall --cd 1 --details
   python -m tools.eval_boundary_recall --apply
   python -m tools.eval_boundary_recall --no-tune
-  python -m tools.eval_boundary_recall --out eval_report.json
+  python -m tools.eval_boundary_recall --out experiments/stage1_boundary_recall_9cd/eval_report.json
 """
 from __future__ import annotations
 
@@ -981,6 +981,7 @@ def main() -> None:
     # Save output JSON report
     if args.out:
         out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "primary_window": primary_window,
             "windows_evaluated": windows,

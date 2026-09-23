@@ -4,7 +4,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-def build_excel_report(out_path: str = "evaluation_result_9cd.xlsx"):
+def build_excel_report(out_path: str = "experiments/stage1_boundary_recall_9cd/evaluation_result_9cd.xlsx"):
     cds = ["1", "2", "3", "4", "5", "6", "8", "9", "10"]
     data_dir = Path("data")
     result_dir = Path("data_result")
@@ -105,6 +105,10 @@ def build_excel_report(out_path: str = "evaluation_result_9cd.xlsx"):
             "pred_bounds_raw": pred_bounds,
             "gt_segs_raw": gt_segs,
         })
+
+    if not cd_results:
+        print(f"No prediction results found in {result_dir} matching {cds}. Excel export skipped.")
+        return
 
     windows = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0]
     sweep_results = []
@@ -347,6 +351,7 @@ def build_excel_report(out_path: str = "evaluation_result_9cd.xlsx"):
     for col_letter, width in col_widths_s2.items():
         ws2.column_dimensions[col_letter].width = width
 
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     wb.save(out_path)
     print(f"Successfully generated clean, perfectly formatted Excel report: {out_path}")
 

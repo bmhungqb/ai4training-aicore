@@ -127,6 +127,9 @@ tools/
                              # no extra dependencies): browse videos under a folder, draw a ROI mask
                              # for each one, save it as "<video_stem>.mask.png" next to the video —
                              # see "Optional: mask out other people in frame" below.
+
+docs/                        # Technical guides and Stage 2 architectural documentation
+experiments/                 # Experiment reports, evaluation metrics, and Excel/JSON data artifacts
 ```
 
 Conventions:
