@@ -40,10 +40,29 @@ def find_mp4(video_dir: Path) -> Path | None:
     return mp4s[0] if mp4s else None
 
 
-def to_ddm_events(step_segments: dict) -> list[dict]:
+def is_unknown(name: str | None) -> bool:
+    return not name or not name.strip() or name.strip().upper() in ["UNKNOWN", "NONE"]
+
+
+def to_ddm_events(step_segments: dict, trim_unknown_edges: bool = True) -> list[dict]:
+    segs = step_segments.get("segments", [])
+    if not segs:
+        return []
+
+    start_idx = 0
+    end_idx = len(segs)
+
+    if trim_unknown_edges:
+        # Trim leading unknown/empty segments before real operations start
+        while start_idx < len(segs) and is_unknown(segs[start_idx].get("operation_name", "")):
+            start_idx += 1
+        # Trim trailing unknown/empty segments after all operations end
+        while end_idx > start_idx and is_unknown(segs[end_idx - 1].get("operation_name", "")):
+            end_idx -= 1
+
     events = []
-    for seg in step_segments.get("segments", []):
-        name = seg.get("operation_name", "") or "UNKNOWN"
+    for seg in segs[start_idx:end_idx]:
+        name = seg.get("operation_name", "").strip() or "UNKNOWN"
         events.append(
             {
                 "event": name,
