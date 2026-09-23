@@ -656,6 +656,9 @@ class EMACallback(Callback):
 
 def main():
     """Main training function."""
+    if torch.cuda.is_available():
+        torch.set_float32_matmul_precision('medium')
+
     # Get configuration (handles YAML + CLI args merging)
     config, args = get_config_with_cli()
 

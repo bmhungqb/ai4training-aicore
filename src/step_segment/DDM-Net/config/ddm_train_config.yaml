@@ -43,8 +43,8 @@ dataset_config:
     data_root: data/ddm_dataset/videos
     temporal_stride: 1
 
-  batch_size: 8
-  workers: 4
+  batch_size: 4
+  workers: 2
 
 # ============================================================================
 # Model Configuration
@@ -83,7 +83,7 @@ training_config:
   clip_grad: null
   clip_mode: "norm"
 
-  amp: true
+  amp: false
 
   model_ema: true
   model_ema_decay: 0.999

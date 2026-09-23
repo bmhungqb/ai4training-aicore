@@ -28,6 +28,6 @@ python "${SCRIPT_DIR}/train_sop_lightning.py" \
   --model-ema-decay 0.999 \
   --model-ema-start-epoch 10 \
   --eval-metric f1_score \
-  --num-workers 4 \
+  --num-workers 2 \
   --num-gpus "${NUM_GPUS}" \
   --save-visualizations
