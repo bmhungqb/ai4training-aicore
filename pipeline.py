@@ -20,18 +20,18 @@ import argparse
 import json
 from pathlib import Path
 
-from src.analysis import expert_analysis, macro_eval, micro_eval
-from src.analysis.segment_classify import (
+from src.action_segment.analysis import expert_analysis, macro_eval, micro_eval
+from src.action_segment.analysis.segment_classify import (
     SegmentClassifier, BatchedSegmentClassifier, cut_worker_segments, dump_timeline_debug)
-from src.config.common import DATA_DIR
-from src.config import phase1_segmentation as cfg1
-from src.config import phase2_classify as cfg2c
-from src.config import phase2_expert as cfg2e
-from src.config import phase2_macro as cfg2m
-from src.config import phase2_micro as cfg2u
-from src.manifest import ordered_scene_items, scene_op_name
-from src.segmentation.kinematic import KinematicSegmenter
-from src.vlm_client import OpenRouterClient
+from src.action_segment.config.common import DATA_DIR
+from src.action_segment.config import phase1_segmentation as cfg1
+from src.action_segment.config import phase2_classify as cfg2c
+from src.action_segment.config import phase2_expert as cfg2e
+from src.action_segment.config import phase2_macro as cfg2m
+from src.action_segment.config import phase2_micro as cfg2u
+from src.action_segment.manifest import ordered_scene_items, scene_op_name
+from src.action_segment.segmentation.kinematic import KinematicSegmenter
+from src.action_segment.vlm_client import OpenRouterClient
 
 SEGMENT_STEPS = ["kinematic"]
 ANALYZE_STEPS = ["expert", "classify", "macro", "micro"]

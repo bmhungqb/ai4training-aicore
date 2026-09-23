@@ -22,20 +22,20 @@ from string import Template
 import cv2
 import numpy as np
 
-from src.config.phase2_classify import (
+from src.action_segment.config.phase2_classify import (
     CUTS_DIR, MAX_STEP_FPS, MIN_STEP_FPS, MODEL, OUT_DIR, TIMELINE_DEBUG_PATH, WORKER_FRAMES_DIR,
     WORKER_VIDEO)
-from src.config.phase1_segmentation import ACTION_SEGMENTS_PATH
-from src.config.phase2_expert import MANIFEST_PATH
-from src.manifest import expected_duration as scene_expected_duration
-from src.manifest import format_product_state, ordered_scene_items, scene_op_name
-from src.prompts.kinematic_classify_prompts import SYSTEM_KINEMATIC_CLASSIFY, USER_KINEMATIC_CLASSIFY
-from src.segmentation.kinematic import KinematicReport, KinematicSegment, parse_action_segments
-from src.utils.frames import encode_expert_frame, encode_worker_frame, find_mask_for_video
-from src.utils.message_content import labeled_frames, render_template_content, text_content
-from src.utils.video import cut_clip, sample_window_frames_cached
-from src.vlm_client import OpenRouterClient, BatchedVlmClient
-from src.utils.motion_viz import (
+from src.action_segment.config.phase1_segmentation import ACTION_SEGMENTS_PATH
+from src.action_segment.config.phase2_expert import MANIFEST_PATH
+from src.action_segment.manifest import expected_duration as scene_expected_duration
+from src.action_segment.manifest import format_product_state, ordered_scene_items, scene_op_name
+from src.action_segment.prompts.kinematic_classify_prompts import SYSTEM_KINEMATIC_CLASSIFY, USER_KINEMATIC_CLASSIFY
+from src.action_segment.segmentation.kinematic import KinematicReport, KinematicSegment, parse_action_segments
+from src.action_segment.utils.frames import encode_expert_frame, encode_worker_frame, find_mask_for_video
+from src.action_segment.utils.message_content import labeled_frames, render_template_content, text_content
+from src.action_segment.utils.video import cut_clip, sample_window_frames_cached
+from src.action_segment.vlm_client import OpenRouterClient, BatchedVlmClient
+from src.action_segment.utils.motion_viz import (
     compute_mhi, load_frames_from_paths, create_motion_composite, encode_motion_composite,
 )
 

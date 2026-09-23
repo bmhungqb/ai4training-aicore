@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from src.config.common import DATA_DIR
+from src.action_segment.config.common import DATA_DIR
 
 # --- model -------------------------------------------------------------------
 VLM_MODEL = "qwen/qwen3.7-flash"

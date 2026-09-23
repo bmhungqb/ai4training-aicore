@@ -10,6 +10,6 @@ lives here, one module per pipeline sub-step (mirroring `src/prompts/`).
 
 These modules hold only constants — no logic, no imports from the rest of
 `src` — so a phase's behaviour can be re-tuned by editing one file. CLI flags
-(`pipeline.py`, `python -m src.analysis.segment_classify`) still override the
+(`pipeline.py`, `python -m src.action_segment.analysis.segment_classify`) still override the
 defaults defined here.
 """

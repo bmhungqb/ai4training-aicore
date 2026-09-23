@@ -13,12 +13,12 @@ import json
 import re
 from pathlib import Path
 
-from src.analysis.segment_classify import (
+from src.action_segment.analysis.segment_classify import (
     SegmentClassifier,
     cut_worker_segments,
     dump_timeline_debug,
 )
-from src.manifest import scene_op_name
+from src.action_segment.manifest import scene_op_name
 
 
 def _norm(s: str) -> str:

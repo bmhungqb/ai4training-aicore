@@ -8,14 +8,14 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.config.phase2_micro import (
+from src.action_segment.config.phase2_micro import (
     MAX_EXPERT_FRAMES, MAX_WORKER_FRAMES, WINDOW_PAD_SEC, WORKER_FRAMES_DIR)
-from src.manifest import format_product_state
-from src.prompts.evaluation_prompts import SYSTEM_MICRO_COMPARE, USER_MICRO_COMPARE
-from src.utils.frames import encode_expert_frame, encode_worker_frame, find_mask_for_video, pick_evenly_spread
-from src.utils.message_content import labeled_frames, render_template_content
-from src.utils.video import worker_frame_ts
-from src.vlm_client import OpenRouterClient
+from src.action_segment.manifest import format_product_state
+from src.action_segment.prompts.evaluation_prompts import SYSTEM_MICRO_COMPARE, USER_MICRO_COMPARE
+from src.action_segment.utils.frames import encode_expert_frame, encode_worker_frame, find_mask_for_video, pick_evenly_spread
+from src.action_segment.utils.message_content import labeled_frames, render_template_content
+from src.action_segment.utils.video import worker_frame_ts
+from src.action_segment.vlm_client import OpenRouterClient
 
 
 def _format_expert_guideline(scene_data: dict) -> str:

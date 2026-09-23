@@ -6,7 +6,7 @@ from pathlib import Path
 
 import cv2
 
-from src.config.common import (
+from src.action_segment.config.common import (
     EXPERT_CROP_BOX, EXPERT_FRAME_WIDTH, WORKER_CROP_BOX, WORKER_FRAME_WIDTH)
 
 

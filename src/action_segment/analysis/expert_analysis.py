@@ -29,21 +29,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from src.config.phase1_segmentation import (
+from src.action_segment.config.phase1_segmentation import (
     ANGLE_TOLERANCE, MIN_DISTANCE, MIN_SEGMENT_LEN, PROMINENCE, REQUIRE_BOTH, SMOOTH_WINDOW)
-from src.config.phase2_expert import (
+from src.action_segment.config.phase2_expert import (
     EXPERT_ACTION_SEGMENTS_PATH, EXPERT_JSON, EXPERT_KINEMATIC_OUT_DIR, EXPERT_SCENES_DIR,
     FRAMES_PER_ACTION_SEGMENT, MAX_REF_FRAMES_PER_SCENE, SHARPNESS_POOL_FACTOR, VLM_MODEL)
-from src.manifest import format_product_state, ordered_scene_items, scene_op_name
-from src.prompts.expert_analysis_prompts import (
+from src.action_segment.manifest import format_product_state, ordered_scene_items, scene_op_name
+from src.action_segment.prompts.expert_analysis_prompts import (
     SYSTEM_LEARNING_PHASE, SYSTEM_SYNTHESIS_PHASE, USER_LEARNING_PHASE, USER_SYNTHESIS_PHASE)
-from src.segmentation.kinematic import KinematicSegmenter
-from src.utils.frames import (
+from src.action_segment.segmentation.kinematic import KinematicSegmenter
+from src.action_segment.utils.frames import (
     encode_expert_frame, find_mask_for_video, pick_evenly_spread, pick_sharpest_spread,
     sample_sharp_points_in_window)
-from src.utils.message_content import labeled_frames, render_template_content
-from src.utils.video import extract_frames_by_index, sample_window_frames_cached
-from src.vlm_client import OpenRouterClient
+from src.action_segment.utils.message_content import labeled_frames, render_template_content
+from src.action_segment.utils.video import extract_frames_by_index, sample_window_frames_cached
+from src.action_segment.vlm_client import OpenRouterClient
 
 
 def auto_select_frames_from_kinematic(

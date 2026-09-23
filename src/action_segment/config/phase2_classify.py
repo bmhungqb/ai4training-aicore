@@ -6,7 +6,7 @@ the expert manifest, scene by scene, via the VLM.
 from __future__ import annotations
 
 from pathlib import Path
-from src.config.common import DATA_DIR
+from src.action_segment.config.common import DATA_DIR
 
 # --- model -------------------------------------------------------------------
 MODEL = "qwen/qwen3.7-flash"

@@ -19,7 +19,7 @@ try:
 except ImportError:
     np = None
 
-from src.config import phase1_segmentation as cfg0
+from src.action_segment.config import phase1_segmentation as cfg0
 
 
 @dataclass

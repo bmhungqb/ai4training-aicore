@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.analysis.expert_analysis import auto_select_frames_from_kinematic, build_selection_manifest
+from src.action_segment.analysis.expert_analysis import auto_select_frames_from_kinematic, build_selection_manifest
 
 
 def run(cd: str = "1", force_kinematic: bool = False) -> None:

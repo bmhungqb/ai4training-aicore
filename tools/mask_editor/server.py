@@ -2,9 +2,9 @@
 """Mask editor server: browse videos under a folder, draw a ROI mask for each
 one in the browser, save it as "<video_stem>.mask.png" next to the video.
 
-That mask file is picked up automatically by src/segmentation/kinematic.py
+That mask file is picked up automatically by src/action_segment/segmentation/kinematic.py
 (KinematicSegmenter) for both worker.mp4 and expert.mp4 — Step 1 (SAM3) and
-Step 2 (SEA-RAFT) in src/kinematic_pipeline/ then restrict processing to the
+Step 2 (SEA-RAFT) in src/action_segment/kinematic_pipeline/ then restrict processing to the
 masked region only, so another person visible in the same frame isn't picked
 up as motion noise.
 

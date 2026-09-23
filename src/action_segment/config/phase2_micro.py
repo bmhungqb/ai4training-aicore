@@ -1,8 +1,8 @@
 """Phase 2 (micro evaluation) configuration."""
 from __future__ import annotations
 
-from src.config.common import DATA_DIR
-from src.config.phase2_classify import WORKER_FRAMES_DIR  # noqa: F401  (re-exported: micro re-reads
+from src.action_segment.config.common import DATA_DIR
+from src.action_segment.config.phase2_classify import WORKER_FRAMES_DIR  # noqa: F401  (re-exported: micro re-reads
                                                           # the frames the classify step sampled)
 
 # --- model -------------------------------------------------------------------

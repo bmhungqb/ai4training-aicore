@@ -12,8 +12,8 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from src.config.phase2_macro import TIMING_FAST_RATIO, TIMING_SLOW_RATIO
-from src.manifest import expected_duration, ordered_scene_items, scene_op_name
+from src.action_segment.config.phase2_macro import TIMING_FAST_RATIO, TIMING_SLOW_RATIO
+from src.action_segment.manifest import expected_duration, ordered_scene_items, scene_op_name
 
 
 @dataclass

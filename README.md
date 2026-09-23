@@ -29,7 +29,7 @@ the worker is off-standard or slower than the expert, and why.
 - **Tracks cost.** Every VLM call's token usage and USD cost is accumulated and reported per segment
   and per run.
 - **Tunable per sub-step.** Every knob, path and model default lives in one file per sub-step under
-  `src/config/`.
+  `src/action_segment/config/`.
 - **Debuggable.** `--visualize` renders the kinematic boundary video/plots (Phase 1) and a
   human-scannable segment timeline (Phase 2 classify step).
 
@@ -40,13 +40,13 @@ knowledge); **Phase 2** is everything that needs the expert video and a VLM to m
 
 | Phase | Sub-step | Module | Input | Output | VLM |
 |---|---|---|---|---|---|
-| **1. Segmentation** | kinematic | `src/segmentation/kinematic.py` | `worker.mp4` | `action_segments.json` | ❌ |
-| **2. Analysis** | expert | `src/analysis/expert_analysis.py` | `expert.json` + `expert.mp4` | `selected_frames.json`, `process_knowledge.json` | ✅ |
-| | classify | `src/analysis/segment_classify.py` | `action_segments.json` + `selected_frames.json` + `worker.mp4` | `worker_segments.json` (+ clips) | ✅ |
-| | macro | `src/analysis/macro_eval.py` | classify output + `selected_frames.json` | `macro_eval.json` | ❌ (pure code) |
-| | micro | `src/analysis/micro_eval.py` | macro's slow segments | `micro_eval.json` | ✅ |
+| **1. Segmentation** | kinematic | `src/action_segment/segmentation/kinematic.py` | `worker.mp4` | `action_segments.json` | ❌ |
+| **2. Analysis** | expert | `src/action_segment/analysis/expert_analysis.py` | `expert.json` + `expert.mp4` | `selected_frames.json`, `process_knowledge.json` | ✅ |
+| | classify | `src/action_segment/analysis/segment_classify.py` | `action_segments.json` + `selected_frames.json` + `worker.mp4` | `worker_segments.json` (+ clips) | ✅ |
+| | macro | `src/action_segment/analysis/macro_eval.py` | classify output + `selected_frames.json` | `macro_eval.json` | ❌ (pure code) |
+| | micro | `src/action_segment/analysis/micro_eval.py` | macro's slow segments | `micro_eval.json` | ✅ |
 
-**Phase 1 (segment)** runs the SAM3 + SEA-RAFT kinematic pipeline (`src/kinematic_pipeline/`,
+**Phase 1 (segment)** runs the SAM3 + SEA-RAFT kinematic pipeline (`src/action_segment/kinematic_pipeline/`,
 invoked as a subprocess) to detect physical motion boundaries — speed valleys / direction changes in
 the worker's hand movement — and writes them as plain, unlabeled `action_segments.json`. This needs
 no API key and no expert video.
@@ -74,62 +74,65 @@ by side, asking the VLM which small step is slow, why, and how to improve it.
 pipeline.py                 # CLI entry point: segment | analyze | all
 
 src/
-  segmentation/              # Phase 1 — no VLM, no expert knowledge
-    kinematic.py              # KinematicSegmenter (subprocess into src/kinematic_pipeline/),
-                              # action_segments.json read/write helpers
+  action_segment/           # Action segmentation pipeline
+    segmentation/           # Phase 1 — no VLM, no expert knowledge
+      kinematic.py          # KinematicSegmenter (subprocess into kinematic_pipeline/),
+                            # action_segments.json read/write helpers
 
-  analysis/                  # Phase 2 — everything VLM-based / expert-dependent
-    expert_analysis.py        # expert sub-step (+ auto_select_frames_from_kinematic — auto
-                              # reference frame selection from kinematic action segmentation)
-    segment_classify.py       # classify sub-step (SegmentClassifier + cut_worker_segments +
-                              # dump_timeline_debug)
-    macro_eval.py             # macro sub-step
-    micro_eval.py             # micro sub-step
+    analysis/               # Phase 2 — everything VLM-based / expert-dependent
+      expert_analysis.py    # expert sub-step (+ auto_select_frames_from_kinematic — auto
+                            # reference frame selection from kinematic action segmentation)
+      segment_classify.py   # classify sub-step (SegmentClassifier + cut_worker_segments +
+                            # dump_timeline_debug)
+      macro_eval.py         # macro sub-step
+      micro_eval.py         # micro sub-step
 
-  vlm_client.py               # OpenRouterClient (chat/chat_json, retries, token + cost tracking)
-  manifest.py                 # selected_frames.json helpers used by every VLM sub-step
-                              # (scene ordering, scene_op_name(), expected_duration(),
-                              # guideline formatting)
+    vlm_client.py           # OpenRouterClient (chat/chat_json, retries, token + cost tracking)
+    manifest.py             # selected_frames.json helpers used by every VLM sub-step
+                            # (scene ordering, scene_op_name(), expected_duration(),
+                            # guideline formatting)
 
-  config/                     # every tunable, default path and default model, one file per sub-step
-    common.py                        # DATA_DIR + frame crop boxes / resize widths
-    phase1_segmentation.py           # Phase 1 — kinematic tunables, paths, DEBUG_DIR (--visualize)
-    phase2_expert.py                 # Phase 2 / expert — model, paths, frame-sampling knobs
-    phase2_classify.py               # Phase 2 / classify — model, paths, fps knobs
-    phase2_macro.py                  # Phase 2 / macro — output path, slow/fast timing ratios
-    phase2_micro.py                  # Phase 2 / micro — model, output path, frame caps
+    config/                 # every tunable, default path and default model, one file per sub-step
+      common.py                    # DATA_DIR + frame crop boxes / resize widths
+      phase1_segmentation.py       # Phase 1 — kinematic tunables, paths, DEBUG_DIR (--visualize)
+      phase2_expert.py             # Phase 2 / expert — model, paths, frame-sampling knobs
+      phase2_classify.py           # Phase 2 / classify — model, paths, fps knobs
+      phase2_macro.py              # Phase 2 / macro — output path, slow/fast timing ratios
+      phase2_micro.py              # Phase 2 / micro — model, output path, frame caps
 
-  utils/
-    env.py                  # .env loader (no python-dotenv dependency)
-    video.py                # cut_clip() (ffmpeg); extract_frames() (uniform sample-fps over the
+    utils/
+      env.py                # .env loader (no python-dotenv dependency)
+      video.py              # cut_clip() (ffmpeg); extract_frames() (uniform sample-fps over the
                             # whole video), extract_frames_in_range() (uniform sample-fps within
                             # one scene's time range), extract_frames_by_index() (specific frame
                             # numbers), sample_window_frames_cached() (timestamp-cached sampling
                             # for the classify sub-step) — all OpenCV
-    frames.py               # pick_evenly_spread(), encode_expert_frame(), encode_worker_frame()
+      frames.py             # pick_evenly_spread(), encode_expert_frame(), encode_worker_frame()
                             # (crop to the work area, resize, base64-JPEG)
-    message_content.py      # image_content()/text_content(), labeled_frames(),
+      message_content.py    # image_content()/text_content(), labeled_frames(),
                             # render_template_content() (prompt-template + image splicing)
 
-  prompts/
-    expert_analysis_prompts.py       # Phase 2 / expert system/user prompts
-    kinematic_classify_prompts.py    # Phase 2 / classify system/user prompts
-    evaluation_prompts.py            # Phase 2 / micro system/user prompts
+    prompts/
+      expert_analysis_prompts.py   # Phase 2 / expert system/user prompts
+      kinematic_classify_prompts.py# Phase 2 / classify system/user prompts
+      evaluation_prompts.py        # Phase 2 / micro system/user prompts
 
-  kinematic_pipeline/        # vendored SAM3 + SEA-RAFT kinematic sub-pipeline, invoked as a
-                             # subprocess only from src/segmentation/kinematic.py — see its own
-                             # files for the physical boundary-detection internals.
-                             # searaft_core/ holds the upstream SEA-RAFT inference code
-                             # (github.com/princeton-vl/SEA-RAFT, BSD-3-Clause).
+    kinematic_pipeline/     # vendored SAM3 + SEA-RAFT kinematic sub-pipeline, invoked as a
+                            # subprocess only from src/action_segment/segmentation/kinematic.py — see its own
+                            # files for the physical boundary-detection internals.
+                            # searaft_core/ holds the upstream SEA-RAFT inference code
+                            # (github.com/princeton-vl/SEA-RAFT, BSD-3-Clause).
+
+  step_segment/             # Step segmentation pipeline (next stage)
 
 tools/
-  mask_editor/               # standalone web tool (stdlib http.server + a plain HTML/canvas page,
-                             # no extra dependencies): browse videos under a folder, draw a ROI mask
-                             # for each one, save it as "<video_stem>.mask.png" next to the video —
-                             # see "Optional: mask out other people in frame" below.
+  mask_editor/             # standalone web tool (stdlib http.server + a plain HTML/canvas page,
+                           # no extra dependencies): browse videos under a folder, draw a ROI mask
+                           # for each one, save it as "<video_stem>.mask.png" next to the video —
+                           # see "Optional: mask out other people in frame" below.
 
-docs/                        # Technical guides and Stage 2 architectural documentation
-experiments/                 # Experiment reports, evaluation metrics, and Excel/JSON data artifacts
+docs/                      # Technical guides and Stage 2 architectural documentation
+experiments/               # Experiment reports, evaluation metrics, and Excel/JSON data artifacts
 ```
 
 Conventions:
@@ -312,23 +315,23 @@ unlabeled physical boundaries from Phase 1.
 `segment_classify.py` is also runnable standalone, with all paths overridable:
 
 ```bash
-python -m src.analysis.segment_classify --cut
-python -m src.analysis.segment_classify --manifest data/expert_scenes/selected_frames.json \
+python -m src.action_segment.analysis.segment_classify --cut
+python -m src.action_segment.analysis.segment_classify --manifest data/expert_scenes/selected_frames.json \
     --video data/worker.mp4 --out-dir data/worker_segments --model qwen/qwen3.7-plus \
     --action-segments data/kinematic/action_segments.json
 ```
 
 ## Tuning a sub-step
 
-Retune a sub-step by editing its `src/config/phase*.py` — nothing else needs to change. For example,
+Retune a sub-step by editing its `src/action_segment/config/phase*.py` — nothing else needs to change. For example,
 to widen what the macro sub-step calls "slow" and re-run kinematic segmentation with a lower angle
 tolerance:
 
 ```python
-# src/config/phase2_macro.py
+# src/action_segment/config/phase2_macro.py
 TIMING_SLOW_RATIO = 2.0      # was 1.5
 
-# src/config/phase1_segmentation.py
+# src/action_segment/config/phase1_segmentation.py
 ANGLE_TOLERANCE = 45.0       # was 60.0
 ```
 
@@ -347,7 +350,7 @@ truth — see above). Reference frame selection within each scene is automatic, 
 3. For each scene, `FRAMES_PER_ACTION_SEGMENT` frames (default 2) are sampled from every action
    segment assigned to it — uniformly spaced in time, picking the **sharpest** nearby frame (variance
    of the Laplacian — a standard, model-free blur metric; see `sharpness_score()` /
-   `pick_sharpest_spread()` in `src/utils/frames.py`) to dodge motion-blurred frames instead of
+   `pick_sharpest_spread()` in `src/action_segment/utils/frames.py`) to dodge motion-blurred frames instead of
    picking whatever lands exactly on the time step.
 4. A scene with zero action segments in its time range (very short/static scene) falls back to a
    single uniform sample over the scene's whole time range.
@@ -359,13 +362,13 @@ This all happens automatically as part of `python pipeline.py analyze --step exp
 `all`/`analyze`) — no extra pass, no manual curation needed. Use `--force-kinematic-expert` to force
 re-running kinematic segmentation on `expert.mp4` instead of reusing a cached report.
 
-Tunables: `src/config/phase2_expert.py` (`FRAMES_PER_ACTION_SEGMENT`, `SHARPNESS_POOL_FACTOR`) and
-`src/config/phase1_segmentation.py` (kinematic thresholds — same knobs used for `worker.mp4`).
+Tunables: `src/action_segment/config/phase2_expert.py` (`FRAMES_PER_ACTION_SEGMENT`, `SHARPNESS_POOL_FACTOR`) and
+`src/action_segment/config/phase1_segmentation.py` (kinematic thresholds — same knobs used for `worker.mp4`).
 
-**Camera angle**: both `encode_expert_frame()` and `encode_worker_frame()` (`src/utils/frames.py`)
+**Camera angle**: both `encode_expert_frame()` and `encode_worker_frame()` (`src/action_segment/utils/frames.py`)
 crop every frame to a fixed work-area box before sending it to the VLM — `EXPERT_CROP_BOX =
 (850, 120, 1800, 900)` for the bundled 1920×1080 `expert.mp4`, `WORKER_CROP_BOX = (20, 20, 400, 320)`
 for the bundled 480×368 `worker.mp4` (wide enough to still see the fabric's shape/direction, not just
-the needle); both live in `src/config/common.py`. A new expert or worker video shot from a different
+the needle); both live in `src/action_segment/config/common.py`. A new expert or worker video shot from a different
 angle or resolution needs its box adjusted there (or passed as `crop_box=None` to send the frame
 uncropped) — neither box is derived from the video automatically.

@@ -34,7 +34,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from src.kinematic_pipeline.visualization import (
+from src.action_segment.kinematic_pipeline.visualization import (
     _angle_to_direction_str,
     _draw_boundary_notification_card,
     _draw_colored_mask,

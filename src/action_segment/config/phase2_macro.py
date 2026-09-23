@@ -1,7 +1,7 @@
 """Phase 2 (macro evaluation) configuration."""
 from __future__ import annotations
 
-from src.config.common import DATA_DIR
+from src.action_segment.config.common import DATA_DIR
 
 # --- paths -------------------------------------------------------------------
 DEFAULT_CD_DIR = DATA_DIR / "1" if (DATA_DIR / "1").is_dir() else DATA_DIR
