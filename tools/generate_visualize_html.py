@@ -37,6 +37,20 @@ def collect_data(data_dir: Path, html_dir: Path) -> list[dict]:
             rel_from_root = mp4.resolve().relative_to(Path(".").resolve())
             video_src = f"../{rel_from_root}"
 
+        # Detect mask path
+        mask_src = None
+        mask_candidates = list(parent.glob("*.mask.png"))
+        if not mask_candidates:
+            mask_candidates = list(parent.glob("*mask*.png"))
+        if mask_candidates:
+            mask_file = mask_candidates[0]
+            try:
+                rel_mask = mask_file.relative_to(html_dir)
+                mask_src = str(rel_mask)
+            except ValueError:
+                rel_mask_from_root = mask_file.resolve().relative_to(Path(".").resolve())
+                mask_src = f"../{rel_mask_from_root}"
+
         data = json.loads(step_file.read_text())
         segs = data.get("segments", [])
         cd = parent.parent.name
@@ -71,6 +85,7 @@ def collect_data(data_dir: Path, html_dir: Path) -> list[dict]:
                 "cd": cd,
                 "chuyen": chuyen,
                 "video_src": video_src,
+                "mask_src": mask_src,
                 "fps": round(data.get("fps", 0), 2),
                 "n_segments": len(annotated_segs),
                 "segments": annotated_segs,
@@ -102,6 +117,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       gap: 16px;
       border-bottom: 1px solid #334155;
+      flex-wrap: wrap;
     }
     header h1 { font-size: 18px; font-weight: 600; color: #38bdf8; }
     select {
@@ -121,6 +137,48 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       font-size: 12px;
       color: #94a3b8;
     }
+    .header-mask-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+      background: #0f172a;
+      padding: 4px 12px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+    }
+    .mask-checkbox-label {
+      font-size: 13px;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 500;
+    }
+    .mask-checkbox-label input {
+      accent-color: #38bdf8;
+      cursor: pointer;
+      width: 15px;
+      height: 15px;
+    }
+    .mask-mode-select {
+      font-size: 12px;
+      padding: 3px 8px;
+    }
+    .mask-opacity-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .mask-opacity-container input {
+      width: 70px;
+      cursor: pointer;
+      accent-color: #38bdf8;
+    }
     .main-container {
       display: flex;
       flex: 1;
@@ -135,13 +193,36 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       align-items: center;
       justify-content: center;
       background: #090d16;
+      overflow: hidden;
     }
-    video {
+    .video-wrapper {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       max-width: 100%;
       max-height: 70vh;
       border-radius: 8px;
+      overflow: hidden;
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
       background: #000;
+    }
+    video {
+      display: block;
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 8px;
+      background: #000;
+    }
+    #maskCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      border-radius: 8px;
+      display: none;
     }
     .current-step-banner {
       width: 100%;
@@ -152,16 +233,73 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
     .current-step-title {
       font-size: 16px;
       font-weight: 600;
       color: #60a5fa;
     }
+    .current-step-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ctrl-btn {
+      background: #334155;
+      color: #f1f5f9;
+      border: 1px solid #475569;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .ctrl-btn:hover:not(:disabled) {
+      background: #475569;
+      border-color: #64748b;
+    }
+    .ctrl-btn.btn-primary {
+      background: #2563eb;
+      border-color: #3b82f6;
+      color: #ffffff;
+      font-weight: 500;
+    }
+    .ctrl-btn.btn-primary:hover:not(:disabled) {
+      background: #1d4ed8;
+    }
+    .ctrl-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .current-step-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
     .current-step-time {
       font-size: 13px;
       color: #94a3b8;
       font-variant-numeric: tabular-nums;
+    }
+    .auto-stop-label {
+      font-size: 12px;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .auto-stop-label input {
+      accent-color: #3b82f6;
+      cursor: pointer;
     }
     .timeline-pane {
       flex: 1;
@@ -251,17 +389,46 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <label for="videoSelect" style="font-size:13px; color:#94a3b8;">Chọn Video:</label>
     <select id="videoSelect"></select>
     <span class="badge" id="videoInfoBadge">0 segments</span>
+
+    <div class="header-mask-group">
+      <label class="mask-checkbox-label" title="Bật/Tắt hiển thị mặt nạ ROI (Worker / Machine Mask)">
+        <input type="checkbox" id="maskToggle">
+        <span>🎭 Hiện Mask ROI</span>
+      </label>
+      <select id="maskModeSelect" class="mask-mode-select" title="Chế độ hiển thị mặt nạ">
+        <option value="dim">Che viền nền mờ</option>
+        <option value="contour">Đường viền viền đỏ</option>
+        <option value="tint">Phủ màu vùng ROI</option>
+      </select>
+      <div class="mask-opacity-container" title="Độ đậm nhạt của mặt nạ">
+        <span>Độ mờ:</span>
+        <input type="range" id="maskOpacity" min="10" max="100" value="70">
+      </div>
+    </div>
   </header>
 
   <div class="main-container">
     <div class="video-pane">
-      <video id="player" controls></video>
+      <div class="video-wrapper" id="videoWrapper">
+        <video id="player" controls></video>
+        <canvas id="maskCanvas"></canvas>
+      </div>
       <div class="current-step-banner">
-        <div>
+        <div class="current-step-info">
           <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8;">Thao tác hiện tại</div>
           <div class="current-step-title" id="currentStepName">--</div>
         </div>
-        <div class="current-step-time" id="currentStepTime">--</div>
+        <div class="current-step-controls">
+          <button id="btnPrevStep" class="ctrl-btn" title="Bước trước">⏮ Bước trước</button>
+          <button id="btnReplayStep" class="ctrl-btn btn-primary" title="Phát lại bước">🔄 Phát lại bước</button>
+          <button id="btnNextStep" class="ctrl-btn" title="Bước sau">Bước sau ⏭</button>
+        </div>
+        <div class="current-step-meta">
+          <div class="current-step-time" id="currentStepTime">--</div>
+          <label class="auto-stop-label" title="Dừng video khi phát hết bước hiện tại">
+            <input type="checkbox" id="autoStopToggle" checked> Dừng khi hết bước
+          </label>
+        </div>
       </div>
     </div>
 
@@ -282,9 +449,26 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     const videoInfoBadge = document.getElementById("videoInfoBadge");
     const currentStepName = document.getElementById("currentStepName");
     const currentStepTime = document.getElementById("currentStepTime");
+    const btnPrevStep = document.getElementById("btnPrevStep");
+    const btnReplayStep = document.getElementById("btnReplayStep");
+    const btnNextStep = document.getElementById("btnNextStep");
+    const autoStopToggle = document.getElementById("autoStopToggle");
+
+    // Mask controls
+    const maskToggle = document.getElementById("maskToggle");
+    const maskModeSelect = document.getElementById("maskModeSelect");
+    const maskOpacity = document.getElementById("maskOpacity");
+    const maskCanvas = document.getElementById("maskCanvas");
+    const maskCtx = maskCanvas.getContext("2d");
 
     let currentVideo = null;
     let currentSegments = [];
+    let currentStepIdx = 0;
+    let activeTargetEndTime = null;
+
+    let maskImg = null;
+    let maskLoaded = false;
+    let maskCache = {}; // Cache rendered mask canvases per video mode
 
     // Populate dropdown
     dataset.forEach((v, idx) => {
@@ -300,9 +484,166 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       player.src = currentVideo.video_src;
       videoInfoBadge.textContent = `${currentSegments.length} step segments | FPS: ${currentVideo.fps}`;
 
+      currentStepIdx = 0;
+      activeTargetEndTime = null;
       renderSegmentList();
       player.currentTime = 0;
       updateActiveStep(0);
+      updateNavButtons();
+
+      loadMask(currentVideo.mask_src);
+    }
+
+    function loadMask(src) {
+      maskLoaded = false;
+      maskImg = null;
+      maskCanvas.style.display = "none";
+
+      if (!src) {
+        maskToggle.disabled = true;
+        return;
+      }
+
+      maskToggle.disabled = false;
+      const img = new Image();
+      img.onload = () => {
+        maskImg = img;
+        maskLoaded = true;
+        renderMask();
+      };
+      img.onerror = () => {
+        maskLoaded = false;
+        maskImg = null;
+        renderMask();
+      };
+      img.src = src;
+    }
+
+    function renderMask() {
+      if (!maskToggle.checked || !maskLoaded || !maskImg) {
+        maskCanvas.style.display = "none";
+        return;
+      }
+
+      const w = player.videoWidth || maskImg.naturalWidth || 1280;
+      const h = player.videoHeight || maskImg.naturalHeight || 720;
+
+      if (maskCanvas.width !== w || maskCanvas.height !== h) {
+        maskCanvas.width = w;
+        maskCanvas.height = h;
+      }
+
+      const mode = maskModeSelect.value;
+      const opacity = parseFloat(maskOpacity.value) / 100.0;
+
+      // Draw mask to an offscreen canvas to process pixels
+      const offCanvas = document.createElement("canvas");
+      offCanvas.width = w;
+      offCanvas.height = h;
+      const offCtx = offCanvas.getContext("2d");
+      offCtx.drawImage(maskImg, 0, 0, w, h);
+
+      const imgData = offCtx.getImageData(0, 0, w, h);
+      const data = imgData.data;
+
+      // Prepare output on maskCanvas
+      const outData = maskCtx.createImageData(w, h);
+      const out = outData.data;
+
+      if (mode === "dim") {
+        // Dim outside mask: mask pixel == 0 is dimmed black with alpha = opacity, mask pixel > 127 is clear (alpha 0)
+        const alphaVal = Math.round(opacity * 255);
+        for (let i = 0; i < data.length; i += 4) {
+          const isFg = data[i] > 127;
+          if (!isFg) {
+            out[i] = 0;
+            out[i + 1] = 0;
+            out[i + 2] = 0;
+            out[i + 3] = alphaVal;
+          } else {
+            out[i + 3] = 0;
+          }
+        }
+      } else if (mode === "tint") {
+        // Highlight ROI: mask pixel > 127 is tinted with cyan/blue, outside is clear
+        const alphaVal = Math.round(opacity * 160);
+        for (let i = 0; i < data.length; i += 4) {
+          const isFg = data[i] > 127;
+          if (isFg) {
+            out[i] = 56;      // R
+            out[i + 1] = 189;  // G (#38bdf8 sky blue)
+            out[i + 2] = 248;  // B
+            out[i + 3] = alphaVal;
+          } else {
+            out[i + 3] = 0;
+          }
+        }
+      } else if (mode === "contour") {
+        // Find boundary edges between 0 and 255
+        const alphaVal = Math.round(opacity * 255);
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            const isFg = data[idx] > 127;
+            let isEdge = false;
+            if (isFg) {
+              // Check 4 neighbors
+              if (x === 0 || x === w - 1 || y === 0 || y === h - 1) {
+                isEdge = true;
+              } else {
+                const left = data[idx - 4] > 127;
+                const right = data[idx + 4] > 127;
+                const top = data[idx - w * 4] > 127;
+                const bottom = data[idx + w * 4] > 127;
+                if (!left || !right || !top || !bottom) {
+                  isEdge = true;
+                }
+              }
+            }
+            if (isEdge) {
+              out[idx] = 239;     // #ef4444 Red
+              out[idx + 1] = 68;
+              out[idx + 2] = 68;
+              out[idx + 3] = alphaVal;
+            } else {
+              out[idx + 3] = 0;
+            }
+          }
+        }
+      }
+
+      maskCtx.putImageData(outData, 0, 0);
+      maskCanvas.style.display = "block";
+    }
+
+    maskToggle.addEventListener("change", renderMask);
+    maskModeSelect.addEventListener("change", renderMask);
+    maskOpacity.addEventListener("input", renderMask);
+
+    player.addEventListener("loadedmetadata", () => {
+      if (maskLoaded) renderMask();
+    });
+
+    function playStep(idx) {
+      if (!currentSegments || idx < 0 || idx >= currentSegments.length) return;
+      currentStepIdx = idx;
+      const seg = currentSegments[idx];
+      player.currentTime = seg.start_time_s;
+      if (autoStopToggle.checked) {
+        activeTargetEndTime = seg.end_time_s;
+      } else {
+        activeTargetEndTime = null;
+      }
+      player.play();
+      updateActiveStep(seg.start_time_s);
+      updateNavButtons();
+    }
+
+    function updateNavButtons() {
+      const hasSegments = currentSegments && currentSegments.length > 0;
+      btnPrevStep.disabled = !hasSegments || currentStepIdx <= 0;
+      btnNextStep.disabled = !hasSegments || currentStepIdx >= currentSegments.length - 1;
+      btnReplayStep.disabled = !hasSegments || currentStepIdx < 0 || currentStepIdx >= currentSegments.length;
     }
 
     function renderSegmentList() {
@@ -326,8 +667,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         `;
 
         item.addEventListener("click", () => {
-          player.currentTime = seg.start_time_s;
-          player.play();
+          playStep(idx);
         });
 
         segmentList.appendChild(item);
@@ -350,6 +690,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       });
 
       if (activeIdx !== -1) {
+        currentStepIdx = activeIdx;
         const activeSeg = currentSegments[activeIdx];
         currentStepName.textContent = activeSeg.operation_name;
         currentStepTime.textContent = `${activeSeg.start_time_s.toFixed(2)}s - ${activeSeg.end_time_s.toFixed(2)}s`;
@@ -359,13 +700,74 @@ HTML_TEMPLATE = """<!DOCTYPE html>
           activeEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
       } else {
-        currentStepName.textContent = "--";
-        currentStepTime.textContent = "--";
+        if (currentStepIdx >= 0 && currentStepIdx < currentSegments.length) {
+          const seg = currentSegments[currentStepIdx];
+          if (Math.abs(time - seg.end_time_s) < 0.1) {
+            const el = document.getElementById(`seg-${currentStepIdx}`);
+            if (el) el.classList.add("active");
+            currentStepName.textContent = seg.operation_name;
+            currentStepTime.textContent = `${seg.start_time_s.toFixed(2)}s - ${seg.end_time_s.toFixed(2)}s`;
+          } else {
+            currentStepName.textContent = "--";
+            currentStepTime.textContent = "--";
+          }
+        } else {
+          currentStepName.textContent = "--";
+          currentStepTime.textContent = "--";
+        }
       }
+      updateNavButtons();
     }
 
+    btnPrevStep.addEventListener("click", () => {
+      if (currentStepIdx > 0) {
+        playStep(currentStepIdx - 1);
+      }
+    });
+
+    btnReplayStep.addEventListener("click", () => {
+      if (currentStepIdx >= 0 && currentStepIdx < currentSegments.length) {
+        playStep(currentStepIdx);
+      }
+    });
+
+    btnNextStep.addEventListener("click", () => {
+      if (currentStepIdx < currentSegments.length - 1) {
+        playStep(currentStepIdx + 1);
+      }
+    });
+
+    autoStopToggle.addEventListener("change", () => {
+      if (!autoStopToggle.checked) {
+        activeTargetEndTime = null;
+      } else if (currentStepIdx >= 0 && currentStepIdx < currentSegments.length && !player.paused) {
+        activeTargetEndTime = currentSegments[currentStepIdx].end_time_s;
+      }
+    });
+
+    player.addEventListener("seeked", () => {
+      if (activeTargetEndTime !== null && currentStepIdx >= 0 && currentStepIdx < currentSegments.length) {
+        const seg = currentSegments[currentStepIdx];
+        if (player.currentTime < seg.start_time_s || player.currentTime >= seg.end_time_s) {
+          activeTargetEndTime = null;
+        }
+      }
+    });
+
     videoSelect.addEventListener("change", (e) => loadVideo(parseInt(e.target.value)));
-    player.addEventListener("timeupdate", () => updateActiveStep(player.currentTime));
+
+    player.addEventListener("timeupdate", () => {
+      const time = player.currentTime;
+      updateActiveStep(time);
+
+      if (autoStopToggle.checked && activeTargetEndTime !== null) {
+        if (time >= activeTargetEndTime) {
+          player.pause();
+          player.currentTime = activeTargetEndTime;
+          activeTargetEndTime = null;
+        }
+      }
+    });
 
     if (dataset.length > 0) {
       loadVideo(0);

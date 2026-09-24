@@ -90,6 +90,7 @@ def get_system_defaults() -> DictConfig:
             'seed': 42,
             'clip_grad': None,
             'clip_mode': 'norm',
+            'aux_loss_weight': 0.3,
             'amp': False,
             'model_ema': False,
             'model_ema_decay': 0.9998,
@@ -397,7 +398,7 @@ def merge_configs(args: argparse.Namespace) -> DictConfig:
     training_keys = [
         'optimizer', 'learning_rate', 'weight_decay', 'momentum', 'opt_eps', 'opt_betas',
         'scheduler', 'warmup_epochs', 'warmup_lr', 'decay_epochs', 'decay_rate',
-        'min_lr', 'patience_epochs', 'epochs', 'eval_freq', 'clip_grad', 'clip_mode',
+        'min_lr', 'patience_epochs', 'epochs', 'eval_freq', 'clip_grad', 'clip_mode', 'aux_loss_weight',
         'amp', 'model_ema', 'model_ema_decay', 'model_ema_start_epoch',
         'eval_metric', 'save_visualizations', 'log_interval', 'output', 'exp_name',
         'resume', 'checkpoint_top_k', 'num_gpus', 'num_nodes', 'strategy',

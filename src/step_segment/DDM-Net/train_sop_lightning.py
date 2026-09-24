@@ -95,6 +95,7 @@ class SOPLightningModule(L.LightningModule):
         eval_metric: str = "F1_score",
         val_anno_path: Optional[str] = None,
         save_visualizations: bool = True,
+        aux_loss_weight: float = 0.3,
         **kwargs
     ):
         super().__init__()
@@ -116,12 +117,32 @@ class SOPLightningModule(L.LightningModule):
 
         # Loss function
         self.criterion = nn.CrossEntropyLoss()
+        self.aux_loss_weight = aux_loss_weight
 
         # Store predictions for F1 calculation
         self.validation_step_outputs = []
 
     def forward(self, x):
         return self.model(x)
+
+    def _compute_loss(self, outputs, rgbs, ddms, target):
+        """Weighted combination of the main head loss and auxiliary head losses.
+
+        The Co-Transformer decoder returns intermediate outputs at every layer
+        for 3 branches (combined `outputs`, `rgbs`, `ddms`). Summing all of them
+        with equal weight (18 losses for a 6-layer decoder) drowns out the
+        gradient of the main head (`outputs[-1]`) with noisy signal from the
+        shallow layers, keeping the loss stuck near `n_heads * ln(2)`.
+        See issues/step_segment_training_issues.md.
+        """
+        main_loss = self.criterion(outputs[-1], target)
+
+        aux_terms = list(outputs[:-1]) + list(rgbs) + list(ddms)
+        if not aux_terms:
+            return main_loss
+
+        aux_loss = sum(self.criterion(o, target) for o in aux_terms) / len(aux_terms)
+        return main_loss + self.aux_loss_weight * aux_loss
 
     def training_step(self, batch, batch_idx):
         input = batch['inp']
@@ -136,14 +157,11 @@ class SOPLightningModule(L.LightningModule):
         # Forward pass
         outputs, rgbs, ddms = self.model(input)
 
-        # Calculate loss for all outputs
-        loss = 0
-        for output in outputs:
-            loss += self.criterion(output, target)
-        for rgb in rgbs:
-            loss += self.criterion(rgb, target)
-        for ddm in ddms:
-            loss += self.criterion(ddm, target)
+        # Calculate loss: focus on the main head (outputs[-1]), and down-weight
+        # the auxiliary heads (intermediate layer outputs + rgb/ddm branches) so
+        # they don't drown out the main signal when summed (see
+        # issues/step_segment_training_issues.md).
+        loss = self._compute_loss(outputs, rgbs, ddms, target)
 
         # Logging
         self.log('train/loss', loss, on_step=True, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=batch_size)
@@ -168,14 +186,8 @@ class SOPLightningModule(L.LightningModule):
         # Forward pass
         outputs, rgbs, ddms = self.model(input)
 
-        # Calculate loss
-        loss = 0
-        for output in outputs:
-            loss += self.criterion(output, target)
-        for rgb in rgbs:
-            loss += self.criterion(rgb, target)
-        for ddm in ddms:
-            loss += self.criterion(ddm, target)
+        # Calculate loss (same weighting as training, for comparable val/loss)
+        loss = self._compute_loss(outputs, rgbs, ddms, target)
 
         # Get final output for metrics
         if isinstance(outputs, (tuple, list)):
@@ -714,6 +726,7 @@ def main():
         clip_grad=train_cfg['clip_grad'],
         clip_mode=train_cfg['clip_mode'],
         eval_metric=train_cfg['eval_metric'],
+        aux_loss_weight=train_cfg.get('aux_loss_weight', 0.3),
         val_anno_path=dataset_cfg['val_config']['anno_path'],
         save_visualizations=train_cfg['save_visualizations'],
         momentum=train_cfg['momentum'],

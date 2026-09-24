@@ -92,8 +92,10 @@ training_config:
   eval_freq: 1
   seed: 42
 
-  clip_grad: null
+  clip_grad: 1.0            # gradient clipping to stabilize training with the multi-head aux loss
   clip_mode: "norm"
+  aux_loss_weight: 0.3      # down-weight the 5 aux intermediate-layer heads (outputs/rgbs/ddms)
+                            # relative to the main head (outputs[-1]); see issues/step_segment_training_issues.md
 
   amp: true   # mixed precision - needed to keep ViT-L/518 activations within 16GB
 
