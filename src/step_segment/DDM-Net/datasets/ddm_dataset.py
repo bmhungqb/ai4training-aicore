@@ -43,6 +43,11 @@ try:
 except ImportError:
     PYAV_AVAILABLE = False
 
+try:
+    from .roi_mask import get_video_mask_roi
+except ImportError:
+    from datasets.roi_mask import get_video_mask_roi
+
 
 def chunk_description(chunk):
     """Return a chunk's description text for either annotation schema.
@@ -258,6 +263,8 @@ class DDMDataset(Dataset):
         video_backend: str = "pyav", # Currently, only 'pyav' and 'torchcodec' are supported
         use_cache: bool = False,
         processor_name_or_path: Optional[str] = None,
+        use_mask_roi: bool = True,
+        mask_margin: float = 0.05,
     ):
         assert mode.lower() in ["train", "val", "test"], "Wrong mode for DDM"
         assert video_backend in ["pyav", "torchcodec"], "Currently only support pyav and torchcodec"
@@ -279,6 +286,8 @@ class DDMDataset(Dataset):
         self.video_backend = video_backend
         self.downsample = downsample
         self.min_change_dur = min_change_dur
+        self.use_mask_roi = use_mask_roi
+        self.mask_margin = mask_margin
 
         if isinstance(resolution, int): # (H, W)
             self.resolution = (resolution, resolution)
@@ -357,8 +366,15 @@ class DDMDataset(Dataset):
                     else: # pyav
                         video_content = vd.get_frames_at(np.arange(vlen), return_pil=bool(self.processor))
 
+                    # Crop follow mask bbox and apply mask
+                    frames_data = video_content.data
+                    if self.use_mask_roi:
+                        roi = get_video_mask_roi(video_path, margin=self.mask_margin)
+                        if roi is not None:
+                            frames_data = roi.apply(frames_data)
+
                     # Normalize and transform video frames
-                    self.video_info[k]["inp"] = self.transform(video_content.data)
+                    self.video_info[k]["inp"] = self.transform(frames_data)
 
                     if self.processor:
                         pil_list = [
@@ -446,7 +462,12 @@ class DDMDataset(Dataset):
                 else: # pyav
                     decoder = PyAVVideoDecoder(video_path)
                     video_content = decoder.get_frames_at(block_idx, return_pil=bool(self.processor))
-                img = self.transform(video_content.data)
+                frames_data = video_content.data
+                if self.use_mask_roi:
+                    roi = get_video_mask_roi(video_path, margin=self.mask_margin)
+                    if roi is not None:
+                        frames_data = roi.apply(frames_data)
+                img = self.transform(frames_data)
 
                 if self.processor:
                     pil_list = [fetch_image({"image": pil, "resized_height": self.resolution[0], "resized_width": self.resolution[1]}) for pil in video_content.pil]

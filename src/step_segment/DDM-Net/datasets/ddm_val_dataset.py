@@ -40,6 +40,11 @@ from typing import (
     Optional, Callable, Tuple, List, Union, Dict
 )
 
+try:
+    from .roi_mask import get_video_mask_roi
+except ImportError:
+    from datasets.roi_mask import get_video_mask_roi
+
 # Import Decord
 try:
     from decord import VideoReader, bridge, cpu
@@ -96,11 +101,19 @@ class DecordStreamingReader:
         resolution: Union[Tuple[int, int], int] = DEFAULT_RESOLUTION,
         transform: Optional[Callable] = None,
         num_threads: int = 1,
+        use_mask_roi: bool = True,
+        mask_margin: float = 0.05,
     ):
         self.path = path
         self.frames_per_side = frames_per_side
         self.downsample = downsample
         self.temporal_stride = temporal_stride
+        self.use_mask_roi = use_mask_roi
+        self.mask_margin = mask_margin
+        if self.use_mask_roi:
+            self.roi = get_video_mask_roi(path, margin=mask_margin)
+        else:
+            self.roi = None
         if isinstance(resolution, int):
             self.resolution = (resolution, resolution)
         elif type(resolution) == tuple and len(resolution) == 2:
@@ -150,6 +163,11 @@ class DecordStreamingReader:
             frames = frames.permute(0, 3, 1, 2)
         else:
             raise ValueError(f"Unexpected frames shape: {frames.shape}, expected single frame (H,W,C) or batch (N,H,W,C)")
+
+        # 1. Crop follow Mask BBox & 2. Apply Mask into Cropped Image
+        if self.roi is not None:
+            frames = self.roi.apply(frames)
+
         if frames.dtype != torch.uint8:
             raise ValueError(
                 f"Expected uint8 frames from video decoder, got {frames.dtype}. "
@@ -240,6 +258,8 @@ class DDMValStreamingDataset(IterableDataset):
         verbose: bool = False,
         decord_num_threads: int = 1,
         gc_every_n_clips: int = 1,
+        use_mask_roi: bool = True,
+        mask_margin: float = 0.05,
     ):
         super().__init__()
         self.frames_per_side = frames_per_side
@@ -249,6 +269,8 @@ class DDMValStreamingDataset(IterableDataset):
         self.min_change_dur = min_change_dur
         self.transform = transform
         self.verbose = verbose
+        self.use_mask_roi = use_mask_roi
+        self.mask_margin = mask_margin
         self.video_info = {}
         # Reader concurrency / memory controls (see "RAM growth during
         # validation" issue): smaller chunk_duration forces the streaming
@@ -498,6 +520,8 @@ class DDMValStreamingDataset(IterableDataset):
                     resolution=self.resolution,
                     transform=self.transform,
                     num_threads=self.decord_num_threads,
+                    use_mask_roi=self.use_mask_roi,
+                    mask_margin=self.mask_margin,
                 )
 
                 for buffer_state in reader:

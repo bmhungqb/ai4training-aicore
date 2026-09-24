@@ -86,6 +86,8 @@ class DDMDataModule(L.LightningDataModule):
                     seed=self.dataset_config["seed"],
                     video_backend=self.dataset_config["video_backend"],
                     transform=training_transform,
+                    use_mask_roi=self.dataset_config.get("use_mask_roi", True),
+                    mask_margin=self.dataset_config.get("mask_margin", 0.05),
                 )
                 self.val_dataset = DDMValStreamingDataset(
                     annotation_file=self.dataset_config["val_config"]["anno_path"],
@@ -105,6 +107,8 @@ class DDMDataModule(L.LightningDataModule):
                     transform=validation_transform,
                     decord_num_threads=self.dataset_config["val_config"].get("decord_num_threads", 1),
                     gc_every_n_clips=self.dataset_config["val_config"].get("gc_every_n_clips", 1),
+                    use_mask_roi=self.dataset_config.get("use_mask_roi", True),
+                    mask_margin=self.dataset_config.get("mask_margin", 0.05),
                 )
             else:
                 raise NotImplementedError(
