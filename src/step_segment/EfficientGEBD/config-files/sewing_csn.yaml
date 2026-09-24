@@ -1,0 +1,60 @@
+# EfficientGEBD config for the industrial sewing "Step Segmentation" dataset.
+#
+# Dataset must be prepared first with:
+#   python tools/prepare_efficient_gebd_dataset.py
+# which produces data/efficient_gebd_dataset/{images,train_annotation.pkl,val_annotation.pkl}
+#
+# This config mirrors script/train/EfficientGEBD-CSN-L1L2.sh (video-domain CSN backbone,
+# FPN heads x1/x2, DiffFormer/DiffMixer) but targets the SEWING dataset instead of
+# Kinetics-GEBD/TAPOS.
+MODEL:
+  NAME: 'E2EModelDiff'
+  BACKBONE:
+    NAME: 'csn'            # 'csn' (R152) or 'csn_r50'
+  DIMENSION: 512
+  WINDOW_SIZE: 8
+  K: 8
+  NUM_TSLICE: 10
+  SIMILARITY_GROUP: 4
+  SIMILARITY_FUNC: 'cosine'
+  HEAD_CHOICE: [1]          # x2 head only (see EfficientGEBD-CSN-L1L2.sh)
+  LOSS_WEIGHT: [1]
+  NUM_BLOCKS: 3
+  RESNET_TYPE: 1
+  CAT_PREV: True
+  FPN_START_IDX: 0
+  IS_BASIC: False
+  SYNC_BN: True
+DATASETS:
+  TRAIN: ('SEWING_train',)
+  TEST: ('SEWING_val',)
+INPUT:
+  RESOLUTION: 224
+  ARGUMENT: True
+  ANNOTATORS: 1            # single annotator (our step_segments.json has one GT source)
+  END_TO_END: True
+  SEQUENCE_LENGTH: 100      # frames per video sampled uniformly (pad if shorter)
+  FRAME_MASK: True
+SOLVER:
+  MAX_EPOCHS: 30
+  WARMUP_EPOCHS: 2
+  MILESTONES: [15, 24]
+  GAMMA: 0.1
+  BATCH_SIZE: 2
+  AMPE: True
+  LR: 1e-2
+  MOMENTUM: 0.9
+  WEIGHT_DECAY: 1e-4
+  CLIP_GRAD: 0.0
+  NUM_WORKERS: 8
+  OPTIMIZER: 'SGD'
+  SIGMA: 1
+TEST:
+  THRESHOLD: 0.3
+  DYNAMIC: False
+  THH: [0.35, 0.35, 0.35]
+  THL: [0.0, 0.0, 0.0]
+  IGNORE: 5
+  PAD_IGNORE: 2
+  RELDIS_THRESHOLD: 0.05
+OUTPUT_DIR: 'output/sewing/'
