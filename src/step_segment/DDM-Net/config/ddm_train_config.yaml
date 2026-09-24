@@ -8,7 +8,7 @@
 
 dataset_config:
   dataset: "DDMDataset"
-  resolution: 224
+  resolution: 518
   frames_per_side: 8
   downsample: 2
   min_change_dur: 0.4
@@ -61,11 +61,13 @@ dataset_config:
 # ============================================================================
 model_config:
   model_name: "multiframes_resnet"
-  backbone: "resnet50"
-  pretrained: true
-  freeze_backbone: false
+  backbone: "dinov2_vitb14"       # Meta Torch Hub DINOv2 ViT-B/14 (86M params, embed_dim=768)
+                                   # Optimal balance of high representation power and fast training.
+                                   # Alternatives: dinov2_vits14 (21M params), dinov2_vitl14 (304M params)
+  pretrained: true                # Automatically downloads weights via torch.hub from Meta
+  freeze_backbone: true           # Keep backbone frozen for efficient fine-tuning on 16GB VRAM
   num_classes: 2
-  img_size: null
+  img_size: 518
 
 # ============================================================================
 # Training Configuration
@@ -93,7 +95,7 @@ training_config:
   clip_grad: null
   clip_mode: "norm"
 
-  amp: false
+  amp: true   # mixed precision - needed to keep ViT-L/518 activations within 16GB
 
   model_ema: true
   model_ema_decay: 0.999

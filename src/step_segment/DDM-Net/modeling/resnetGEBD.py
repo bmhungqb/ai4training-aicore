@@ -474,6 +474,57 @@ def resnet50_feature_extractor(pretrained=True, progress=True, **kwargs):
     return model
 
 
+class DINOv2Backbone(nn.Module):
+    """Wrapper around Meta's Torch Hub DINOv2 vision transformer models.
+
+    Supports:
+        dinov2_vits14 (embed_dim=384, depth=12)
+        dinov2_vitb14 (embed_dim=768, depth=12)
+        dinov2_vitl14 (embed_dim=1024, depth=24)
+        dinov2_vitg14 (embed_dim=1536, depth=40)
+
+    Extracts 3 intermediate feature maps matching the receptive hierarchy
+    expected by DDM-Net (corresponding to x2, x3, x4).
+    """
+
+    DINOV2_SPECS = {
+        "dinov2_vits14": {"embed_dim": 384, "layer_indices": (3, 7, 11)},
+        "dinov2_vitb14": {"embed_dim": 768, "layer_indices": (3, 7, 11)},
+        "dinov2_vitl14": {"embed_dim": 1024, "layer_indices": (7, 15, 23)},
+        "dinov2_vitg14": {"embed_dim": 1536, "layer_indices": (11, 25, 39)},
+    }
+
+    def __init__(self, model_name="dinov2_vitb14", pretrained=True):
+        super().__init__()
+        model_name = model_name.lower()
+        if model_name not in self.DINOV2_SPECS:
+            raise ValueError(
+                f"Unsupported DINOv2 model: {model_name}. "
+                f"Choose from: {list(self.DINOV2_SPECS.keys())}"
+            )
+        self.model_name = model_name
+        self.embed_dim = self.DINOV2_SPECS[model_name]["embed_dim"]
+        self.layer_indices = self.DINOV2_SPECS[model_name]["layer_indices"]
+
+        is_pretrained = (
+            pretrained if isinstance(pretrained, bool) else (pretrained is not None and str(pretrained).lower() != "false")
+        )
+        self.model = torch.hub.load("facebookresearch/dinov2", model_name, pretrained=is_pretrained)
+
+    def forward(self, x):
+        """Extract intermediate 4D feature maps (B, C, H//14, W//14).
+
+        Returns:
+            (x2, x3, x4): 3 intermediate feature map tensors with shape (B, embed_dim, H_p, W_p)
+        """
+        feats = self.model.get_intermediate_layers(x, n=self.layer_indices, reshape=True)
+        return feats[0], feats[1], feats[2]
+
+    def freeze_backbone(self):
+        for param in self.parameters():
+            param.requires_grad = False
+
+
 def pairwise_cosine_similarity(x, y):
     x = x.unsqueeze(3)
     y = y.unsqueeze(3)
@@ -522,6 +573,17 @@ class resnetGEBD(nn.Module):
         elif backbone.lower() == "resnet18":
             self.backbone = resnet18_feature_extractor(pretrained=pretrained)
             del self.backbone.avgpool, self.backbone.fc
+            if freeze_backbone:
+                self.backbone.freeze_backbone()
+        elif backbone.lower().startswith("dinov2") or backbone.lower() in [
+            "dinov2_vits14", "dinov2_vitb14", "dinov2_vitl14", "dinov2_vitg14"
+        ]:
+            # Standard Meta Torch Hub DINOv2 (Option A: pure PyTorch, no custom C++ ops)
+            model_key = backbone.lower()
+            if model_key == "dinov2":
+                model_key = "dinov2_vitb14"
+            self.backbone = DINOv2Backbone(model_name=model_key, pretrained=pretrained)
+            self.dinov2_feature_dims = [self.backbone.embed_dim] * 4
             if freeze_backbone:
                 self.backbone.freeze_backbone()
         elif backbone.lower() == "nvdinov2_large":
@@ -609,7 +671,7 @@ class resnetGEBD(nn.Module):
         )
         self.proj_v = nn.Sequential(nn.Linear(512, 1, bias=True), nn.ReLU(inplace=True))
 
-        if "nvdinov2" in backbone.lower():
+        if "dinov2" in backbone.lower():
             self.x2_out = nn.Sequential(
                 nn.Conv1d(self.dinov2_feature_dims[1], 512, 1),
                 nn.ReLU(inplace=True),
@@ -741,7 +803,7 @@ class resnetGEBD(nn.Module):
         x4 = self.avg_pool(x4).squeeze()
 
         x2 = einops.rearrange(x2, "(b f) c -> b f c", b=B).permute(0, 2, 1)
-        if "nvdinov2" in self.backbone_name:
+        if "dinov2" in self.backbone_name:
             x2 = self.x2_out(x2)
         x3 = einops.rearrange(x3, "(b f) c -> b f c", b=B).permute(0, 2, 1)
         x3 = self.x3_out(x3)
