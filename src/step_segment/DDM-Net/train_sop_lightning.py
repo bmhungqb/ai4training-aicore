@@ -378,10 +378,11 @@ class SOPLightningModule(L.LightningModule):
         scheduler_name = self.hparams.scheduler.lower()
 
         if scheduler_name == 'cosine':
-            # Cosine Annealing
+            # Cosine Annealing (ensure T_max >= 1 to prevent ZeroDivisionError in dry-run/short runs)
+            t_max = max(1, self.trainer.max_epochs - self.hparams.warmup_epochs)
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer,
-                T_max=self.trainer.max_epochs - self.hparams.warmup_epochs,
+                T_max=t_max,
                 eta_min=self.hparams.min_lr
             )
         elif scheduler_name == 'step':
