@@ -104,6 +104,7 @@ def get_system_defaults() -> DictConfig:
             'num_gpus': 1,
             'num_nodes': 1,
             'strategy': 'auto',
+            'dry_run': False,
         },
         'logging': {}
     })
@@ -237,6 +238,8 @@ def get_parser():
                         help=f'Clipping mode (default: {t_cfg.clip_mode})')
     parser.add_argument('--amp', action='store_true', default=argparse.SUPPRESS, 
                         help=f'Enable AMP (default: {t_cfg.amp})')
+    parser.add_argument('--dry-run', action='store_true', default=argparse.SUPPRESS,
+                        help='Perform a dry run: test a few batches of train and val, then exit')
 
     # ============================================================================
     # EMA & Eval & Output
@@ -397,7 +400,8 @@ def merge_configs(args: argparse.Namespace) -> DictConfig:
         'min_lr', 'patience_epochs', 'epochs', 'eval_freq', 'clip_grad', 'clip_mode',
         'amp', 'model_ema', 'model_ema_decay', 'model_ema_start_epoch',
         'eval_metric', 'save_visualizations', 'log_interval', 'output', 'exp_name',
-        'resume', 'checkpoint_top_k', 'num_gpus', 'num_nodes', 'strategy'
+        'resume', 'checkpoint_top_k', 'num_gpus', 'num_nodes', 'strategy',
+        'dry_run'
     ]
 
     for key in training_keys:

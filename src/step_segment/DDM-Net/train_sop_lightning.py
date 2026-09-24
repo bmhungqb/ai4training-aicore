@@ -770,6 +770,12 @@ def main():
     else:
         strategy = 'auto'  # Single GPU
 
+    dry_run = train_cfg.get('dry_run', False)
+    if dry_run:
+        print(f"\n{'!'*60}")
+        print("  DRY-RUN MODE ENABLED: Testing 2 train batches and 2 val batches, then exiting.")
+        print(f"{'!'*60}\n")
+
     # Initialize trainer
     trainer = L.Trainer(
         max_epochs=train_cfg['epochs'],
@@ -779,12 +785,13 @@ def main():
         strategy=strategy,
         callbacks=callbacks,
         default_root_dir=output_dir,
+        fast_dev_run=2 if dry_run else False,
         precision='16-mixed' if train_cfg['amp'] else '32-true',
         gradient_clip_val=train_cfg['clip_grad'] if train_cfg['clip_grad'] else None,
         gradient_clip_algorithm=train_cfg['clip_mode'],
         check_val_every_n_epoch=train_cfg['eval_freq'],
         log_every_n_steps=train_cfg.get('log_interval', 50),
-        enable_checkpointing=True,
+        enable_checkpointing=not dry_run,
         enable_progress_bar=True,
         enable_model_summary=True,
         deterministic=True,
@@ -814,11 +821,15 @@ def main():
 
     # Print summary
     print(f"\n{'='*60}")
-    print(f"Training completed!")
-    print(f"{'='*60}")
-    print(f"Output directory: {output_dir}")
-    print(f"Best checkpoint: {checkpoint_callback.best_model_path}")
-    print(f"Best {train_cfg['eval_metric']}: {checkpoint_callback.best_model_score:.4f}")
+    if dry_run:
+        print("Dry-run completed successfully! (Model, dataloaders, and loss checked)")
+    else:
+        print(f"Training completed!")
+        print(f"Output directory: {output_dir}")
+        print(f"Best checkpoint: {checkpoint_callback.best_model_path}")
+        best_score = getattr(checkpoint_callback, 'best_model_score', None)
+        if best_score is not None:
+            print(f"Best {train_cfg['eval_metric']}: {best_score:.4f}")
     print(f"Configuration: {config_save_path}")
     print(f"{'='*60}\n")
 
