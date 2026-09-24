@@ -721,6 +721,12 @@ def main():
         resolution=dataset_cfg['resolution'],
     )
 
+    dry_run = train_cfg.get('dry_run', False)
+    if dry_run:
+        print(f"\n{'!'*60}")
+        print("  DRY-RUN MODE ENABLED: Testing 2 train batches and 2 val batches, then exiting.")
+        print(f"{'!'*60}\n")
+
     # Callbacks
     callbacks = []
 
@@ -732,19 +738,20 @@ def main():
     # restores the per-step progress lines so the training-status bar advances.
     callbacks.append(TQDMProgressBar())
 
-    # Model checkpoint
-    checkpoint_monitor_metric = f"val/{train_cfg['eval_metric']}"
-    checkpoint_mode = 'min' if 'loss' in train_cfg['eval_metric'].lower() else 'max'
-    checkpoint_callback = ModelCheckpoint(
-        dirpath=output_dir,
-        filename=f'epoch_{{epoch:03d}}-{{{checkpoint_monitor_metric}:.3f}}',
-        monitor=checkpoint_monitor_metric,
-        mode=checkpoint_mode,
-        save_top_k=train_cfg['checkpoint_top_k'],
-        save_last=True,
-        verbose=True,
-    )
-    callbacks.append(checkpoint_callback)
+    checkpoint_callback = None
+    if not dry_run:
+        checkpoint_monitor_metric = f"val/{train_cfg['eval_metric']}"
+        checkpoint_mode = 'min' if 'loss' in train_cfg['eval_metric'].lower() else 'max'
+        checkpoint_callback = ModelCheckpoint(
+            dirpath=output_dir,
+            filename=f'epoch_{{epoch:03d}}-{{{checkpoint_monitor_metric}:.3f}}',
+            monitor=checkpoint_monitor_metric,
+            mode=checkpoint_mode,
+            save_top_k=train_cfg['checkpoint_top_k'],
+            save_last=True,
+            verbose=True,
+        )
+        callbacks.append(checkpoint_callback)
 
     # Learning rate monitor
     lr_monitor = LearningRateMonitor(logging_interval='step')
@@ -769,12 +776,6 @@ def main():
         )
     else:
         strategy = 'auto'  # Single GPU
-
-    dry_run = train_cfg.get('dry_run', False)
-    if dry_run:
-        print(f"\n{'!'*60}")
-        print("  DRY-RUN MODE ENABLED: Testing 2 train batches and 2 val batches, then exiting.")
-        print(f"{'!'*60}\n")
 
     # Initialize trainer
     trainer = L.Trainer(
