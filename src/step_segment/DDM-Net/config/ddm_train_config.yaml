@@ -53,7 +53,7 @@ dataset_config:
     decord_num_threads: 1    # caps decord's internal native read-ahead cache
     gc_every_n_clips: 1      # force a GC pass after every clip is released
 
-  batch_size: 4
+  batch_size: 2              # Safe for 16GB VRAM with resolution 518x518 and 17 frames per window
   workers: 2
 
 # ============================================================================

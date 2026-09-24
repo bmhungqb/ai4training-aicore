@@ -511,16 +511,24 @@ class DINOv2Backbone(nn.Module):
         )
         self.model = torch.hub.load("facebookresearch/dinov2", model_name, pretrained=is_pretrained)
 
+        self._is_frozen = False
+
     def forward(self, x):
         """Extract intermediate 4D feature maps (B, C, H//14, W//14).
 
         Returns:
             (x2, x3, x4): 3 intermediate feature map tensors with shape (B, embed_dim, H_p, W_p)
         """
-        feats = self.model.get_intermediate_layers(x, n=self.layer_indices, reshape=True)
+        if self._is_frozen or not self.training:
+            with torch.no_grad():
+                feats = self.model.get_intermediate_layers(x, n=self.layer_indices, reshape=True)
+        else:
+            feats = self.model.get_intermediate_layers(x, n=self.layer_indices, reshape=True)
         return feats[0], feats[1], feats[2]
 
     def freeze_backbone(self):
+        self._is_frozen = True
+        self.model.eval()
         for param in self.parameters():
             param.requires_grad = False
 
