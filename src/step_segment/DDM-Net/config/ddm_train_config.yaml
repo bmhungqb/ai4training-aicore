@@ -9,9 +9,9 @@
 dataset_config:
   dataset: "DDMDataset"
   resolution: 224
-  frames_per_side: 5
-  downsample: 1
-  min_change_dur: 0.3
+  frames_per_side: 8
+  downsample: 2
+  min_change_dur: 0.4
   num_classes: 2
   seed: 42
   video_backend: "pyav"
@@ -76,10 +76,10 @@ training_config:
   opt_eps: null
   opt_betas: null
 
-  scheduler: "step"
-  warmup_epochs: 0
-  warmup_lr: 0.0001
-  decay_epochs: 2
+  scheduler: "cosine"
+  warmup_epochs: 1
+  warmup_lr: 0.00001
+  decay_epochs: 5
   decay_rate: 0.5
   min_lr: 1e-10
   patience_epochs: 10
