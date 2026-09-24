@@ -1,0 +1,10 @@
+einops==0.7.0
+numpy>=1.26.0,<2.0
+# pickle5 is built into Python >=3.8 standard library ('pickle'); do not install on Python 3.10+
+Pillow>=9.4.0
+tabulate==0.9.0
+torch>=2.1.0
+torchvision>=0.16.0
+tqdm>=4.65.0
+yacs==0.1.8
+wandb>=0.16.6  # optional, only needed with train.py --wandb

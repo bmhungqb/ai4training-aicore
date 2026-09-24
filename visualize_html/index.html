@@ -71,16 +71,73 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
     .current-step-title {
       font-size: 16px;
       font-weight: 600;
       color: #60a5fa;
     }
+    .current-step-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ctrl-btn {
+      background: #334155;
+      color: #f1f5f9;
+      border: 1px solid #475569;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .ctrl-btn:hover:not(:disabled) {
+      background: #475569;
+      border-color: #64748b;
+    }
+    .ctrl-btn.btn-primary {
+      background: #2563eb;
+      border-color: #3b82f6;
+      color: #ffffff;
+      font-weight: 500;
+    }
+    .ctrl-btn.btn-primary:hover:not(:disabled) {
+      background: #1d4ed8;
+    }
+    .ctrl-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .current-step-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
     .current-step-time {
       font-size: 13px;
       color: #94a3b8;
       font-variant-numeric: tabular-nums;
+    }
+    .auto-stop-label {
+      font-size: 12px;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .auto-stop-label input {
+      accent-color: #3b82f6;
+      cursor: pointer;
     }
     .timeline-pane {
       flex: 1;
@@ -176,11 +233,21 @@
     <div class="video-pane">
       <video id="player" controls></video>
       <div class="current-step-banner">
-        <div>
+        <div class="current-step-info">
           <div style="font-size: 11px; text-transform: uppercase; color: #94a3b8;">Thao tác hiện tại</div>
           <div class="current-step-title" id="currentStepName">--</div>
         </div>
-        <div class="current-step-time" id="currentStepTime">--</div>
+        <div class="current-step-controls">
+          <button id="btnPrevStep" class="ctrl-btn" title="Bước trước">⏮ Bước trước</button>
+          <button id="btnReplayStep" class="ctrl-btn btn-primary" title="Phát lại bước">🔄 Phát lại bước</button>
+          <button id="btnNextStep" class="ctrl-btn" title="Bước sau">Bước sau ⏭</button>
+        </div>
+        <div class="current-step-meta">
+          <div class="current-step-time" id="currentStepTime">--</div>
+          <label class="auto-stop-label" title="Dừng video khi phát hết bước hiện tại">
+            <input type="checkbox" id="autoStopToggle" checked> Dừng khi hết bước
+          </label>
+        </div>
       </div>
     </div>
 
@@ -201,9 +268,15 @@
     const videoInfoBadge = document.getElementById("videoInfoBadge");
     const currentStepName = document.getElementById("currentStepName");
     const currentStepTime = document.getElementById("currentStepTime");
+    const btnPrevStep = document.getElementById("btnPrevStep");
+    const btnReplayStep = document.getElementById("btnReplayStep");
+    const btnNextStep = document.getElementById("btnNextStep");
+    const autoStopToggle = document.getElementById("autoStopToggle");
 
     let currentVideo = null;
     let currentSegments = [];
+    let currentStepIdx = 0;
+    let activeTargetEndTime = null;
 
     // Populate dropdown
     dataset.forEach((v, idx) => {
@@ -219,9 +292,34 @@
       player.src = currentVideo.video_src;
       videoInfoBadge.textContent = `${currentSegments.length} step segments | FPS: ${currentVideo.fps}`;
 
+      currentStepIdx = 0;
+      activeTargetEndTime = null;
       renderSegmentList();
       player.currentTime = 0;
       updateActiveStep(0);
+      updateNavButtons();
+    }
+
+    function playStep(idx) {
+      if (!currentSegments || idx < 0 || idx >= currentSegments.length) return;
+      currentStepIdx = idx;
+      const seg = currentSegments[idx];
+      player.currentTime = seg.start_time_s;
+      if (autoStopToggle.checked) {
+        activeTargetEndTime = seg.end_time_s;
+      } else {
+        activeTargetEndTime = null;
+      }
+      player.play();
+      updateActiveStep(seg.start_time_s);
+      updateNavButtons();
+    }
+
+    function updateNavButtons() {
+      const hasSegments = currentSegments && currentSegments.length > 0;
+      btnPrevStep.disabled = !hasSegments || currentStepIdx <= 0;
+      btnNextStep.disabled = !hasSegments || currentStepIdx >= currentSegments.length - 1;
+      btnReplayStep.disabled = !hasSegments || currentStepIdx < 0 || currentStepIdx >= currentSegments.length;
     }
 
     function renderSegmentList() {
@@ -245,8 +343,7 @@
         `;
 
         item.addEventListener("click", () => {
-          player.currentTime = seg.start_time_s;
-          player.play();
+          playStep(idx);
         });
 
         segmentList.appendChild(item);
@@ -269,6 +366,7 @@
       });
 
       if (activeIdx !== -1) {
+        currentStepIdx = activeIdx;
         const activeSeg = currentSegments[activeIdx];
         currentStepName.textContent = activeSeg.operation_name;
         currentStepTime.textContent = `${activeSeg.start_time_s.toFixed(2)}s - ${activeSeg.end_time_s.toFixed(2)}s`;
@@ -278,13 +376,74 @@
           activeEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
       } else {
-        currentStepName.textContent = "--";
-        currentStepTime.textContent = "--";
+        if (currentStepIdx >= 0 && currentStepIdx < currentSegments.length) {
+          const seg = currentSegments[currentStepIdx];
+          if (Math.abs(time - seg.end_time_s) < 0.1) {
+            const el = document.getElementById(`seg-${currentStepIdx}`);
+            if (el) el.classList.add("active");
+            currentStepName.textContent = seg.operation_name;
+            currentStepTime.textContent = `${seg.start_time_s.toFixed(2)}s - ${seg.end_time_s.toFixed(2)}s`;
+          } else {
+            currentStepName.textContent = "--";
+            currentStepTime.textContent = "--";
+          }
+        } else {
+          currentStepName.textContent = "--";
+          currentStepTime.textContent = "--";
+        }
       }
+      updateNavButtons();
     }
 
+    btnPrevStep.addEventListener("click", () => {
+      if (currentStepIdx > 0) {
+        playStep(currentStepIdx - 1);
+      }
+    });
+
+    btnReplayStep.addEventListener("click", () => {
+      if (currentStepIdx >= 0 && currentStepIdx < currentSegments.length) {
+        playStep(currentStepIdx);
+      }
+    });
+
+    btnNextStep.addEventListener("click", () => {
+      if (currentStepIdx < currentSegments.length - 1) {
+        playStep(currentStepIdx + 1);
+      }
+    });
+
+    autoStopToggle.addEventListener("change", () => {
+      if (!autoStopToggle.checked) {
+        activeTargetEndTime = null;
+      } else if (currentStepIdx >= 0 && currentStepIdx < currentSegments.length && !player.paused) {
+        activeTargetEndTime = currentSegments[currentStepIdx].end_time_s;
+      }
+    });
+
+    player.addEventListener("seeked", () => {
+      if (activeTargetEndTime !== null && currentStepIdx >= 0 && currentStepIdx < currentSegments.length) {
+        const seg = currentSegments[currentStepIdx];
+        if (player.currentTime < seg.start_time_s || player.currentTime >= seg.end_time_s) {
+          activeTargetEndTime = null;
+        }
+      }
+    });
+
     videoSelect.addEventListener("change", (e) => loadVideo(parseInt(e.target.value)));
-    player.addEventListener("timeupdate", () => updateActiveStep(player.currentTime));
+
+    player.addEventListener("timeupdate", () => {
+      const time = player.currentTime;
+      updateActiveStep(time);
+
+      if (autoStopToggle.checked && activeTargetEndTime !== null) {
+        if (time >= activeTargetEndTime) {
+          player.pause();
+          player.currentTime = activeTargetEndTime;
+          activeTargetEndTime = null;
+        }
+      }
+    });
 
     if (dataset.length > 0) {
       loadVideo(0);
