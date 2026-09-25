@@ -9,6 +9,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from tqdm import tqdm
 from model import OnGEBDModel
 
 def smooth_labels(labels, sigma=1.0):
@@ -58,7 +59,8 @@ def train_one_epoch(model, dataloader, optimizer, device, lambda_anticipation=0.
     total_bce = 0
     total_mse = 0
 
-    for batch_idx, batch in enumerate(dataloader):
+    pbar = tqdm(enumerate(dataloader), total=len(dataloader), desc="Training")
+    for batch_idx, batch in pbar:
         # frames shape: (B, T, C, H, W)
         # labels shape: (B, T) - 1 for boundary, 0 for non-boundary
         frames = batch['imgs'].to(device)
@@ -85,6 +87,12 @@ def train_one_epoch(model, dataloader, optimizer, device, lambda_anticipation=0.
         total_loss += loss.item()
         total_bce += bce_loss.item()
         total_mse += anticipation_loss.item()
+        
+        pbar.set_postfix({
+            "Loss": f"{loss.item():.4f}",
+            "BCE/Focal": f"{bce_loss.item():.4f}",
+            "MSE": f"{anticipation_loss.item():.4f}"
+        })
 
     print(f"Epoch Loss: {total_loss/len(dataloader):.4f} | "
           f"{'Focal' if loss_type == 'focal' else 'BCE'}: {total_bce/len(dataloader):.4f} | "
@@ -103,7 +111,8 @@ def evaluate_boundaries(model, dataloader, device, prob_threshold=0.5, tolerance
     model.eval()
     tp = fp = fn = 0
 
-    for batch in dataloader:
+    pbar = tqdm(dataloader, desc="Evaluating")
+    for batch in pbar:
         frames = batch['imgs'].to(device)
         labels = batch['labels'].to(device)
         B, T = labels.shape
