@@ -64,7 +64,7 @@ def prepare_gebd_annotations(cfg, root, name, split):
         if name == 'GEBD':
             filename = 'end_to_end{}_'.format(cfg.INPUT.SEQUENCE_LENGTH) + filename
         elif name in ('TAPOS', 'SEWING'):
-            filename = 'end_to_end_slice{}_fps10_sigma{}_'.format(cfg.INPUT.SEQUENCE_LENGTH, cfg.SOLVER.SIGMA) + filename
+            filename = 'end_to_end_slice{}_fps10_'.format(cfg.INPUT.SEQUENCE_LENGTH) + filename
 
     if num_annotators > 1:
         filename = 'top{}_'.format(num_annotators) + filename
@@ -197,7 +197,7 @@ def prepare_gebd_annotations(cfg, root, name, split):
                             labels_valid.pop()  # pop '0'
                             labels_valid.append(1)
                             break
-                labels_valid = prepare_gaussian_targets(labels_valid, sigma=cfg.SOLVER.SIGMA)
+                labels_valid = prepare_gaussian_targets(labels_valid)
                 labels_all = [0] * len(selected_indices_all)
                 labels_all[:num_selected_indices_valid] = labels_valid
 

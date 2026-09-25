@@ -48,10 +48,10 @@ SOLVER:
   CLIP_GRAD: 0.0
   NUM_WORKERS: 8
   OPTIMIZER: 'SGD'
-  SIGMA: 2          # widen the positive target window around each boundary (was hard-coded to 1, disconnected from this config) to give the model more room to learn -> helps recall
+  SIGMA: 1
   POS_WEIGHT: 4.5    # counter class imbalance (only ~18% of frames are near a boundary)
 TEST:
-  THRESHOLD: 0.2    # lower from 0.3: precision was near 1.0 / recall near 0, i.e. model was too conservative
+  THRESHOLD: 0.3
   DYNAMIC: False
   THH: [0.35, 0.35, 0.35]
   THL: [0.0, 0.0, 0.0]
