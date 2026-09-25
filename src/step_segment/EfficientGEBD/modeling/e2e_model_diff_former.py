@@ -269,6 +269,7 @@ class E2EModelDiff(nn.Module):
         super().__init__()
         self.backbone_name = cfg.MODEL.BACKBONE.NAME
         self.dataset = cfg.DATASETS.TRAIN[0].split('_')[0]
+        self.pos_weight = cfg.SOLVER.POS_WEIGHT
         if self.backbone_name == 'csn':
             self.backbone = CSN().backbone
             in_feat_dim = 2048
@@ -442,7 +443,10 @@ class E2EModelDiff(nn.Module):
                     targets_valid = targets[masks]
                 else:
                     targets_valid = targets
-                loss = F.binary_cross_entropy_with_logits(logits, targets_valid)
+                pos_weight = None
+                if self.pos_weight != 1.0:
+                    pos_weight = torch.tensor(self.pos_weight, device=logits.device, dtype=logits.dtype)
+                loss = F.binary_cross_entropy_with_logits(logits, targets_valid, pos_weight=pos_weight)
                 losses.append(loss)
 
             # return losses, logits_list, hard_targets_from_th

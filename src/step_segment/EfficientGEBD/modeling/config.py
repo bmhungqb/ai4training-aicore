@@ -63,6 +63,7 @@ _C.SOLVER.CLIP_GRAD = 0.0
 _C.SOLVER.NUM_WORKERS = 8
 _C.SOLVER.OPTIMIZER = 'SGD'
 _C.SOLVER.SIGMA = 1
+_C.SOLVER.POS_WEIGHT = 1.0  # BCE pos_weight to counter class imbalance (>1 upweights boundary frames)
 
 # ---------------------------------------------------------------------------- #
 # TEST

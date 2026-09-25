@@ -238,6 +238,7 @@ class BaseModel(nn.Module):
         super().__init__()
         self.backbone_name = cfg.MODEL.BACKBONE.NAME
         self.dataset = cfg.DATASETS.TRAIN[0].split('_')[0]
+        self.pos_weight = cfg.SOLVER.POS_WEIGHT
         self.fpn_start_idx = cfg.MODEL.FPN_START_IDX
         self.cat_prev = cfg.MODEL.CAT_PREV
         assert self.fpn_start_idx < (max(cfg.MODEL.HEAD_CHOICE)+1)
@@ -396,7 +397,10 @@ class BaseModel(nn.Module):
                     targets_valid = targets[masks]
                 else:
                     targets_valid = targets
-                loss = F.binary_cross_entropy_with_logits(logits, targets_valid)
+                pos_weight = None
+                if self.pos_weight != 1.0:
+                    pos_weight = torch.tensor(self.pos_weight, device=logits.device, dtype=logits.dtype)
+                loss = F.binary_cross_entropy_with_logits(logits, targets_valid, pos_weight=pos_weight)
                 losses.append(loss)
 
             return losses

@@ -49,6 +49,7 @@ SOLVER:
   NUM_WORKERS: 8
   OPTIMIZER: 'SGD'
   SIGMA: 1
+  POS_WEIGHT: 4.5    # counter class imbalance (only ~18% of frames are near a boundary)
 TEST:
   THRESHOLD: 0.3
   DYNAMIC: False
