@@ -52,6 +52,13 @@ def focal_loss_with_logits(logits, targets, alpha=0.9, gamma_pos=0.5, gamma_neg=
       are true boundaries the model currently predicts as non-boundary
       (p_t < 0.5), i.e. an explicit false-negative penalty on top of the
       asymmetric gamma.
+
+    IMPORTANT: uses BALANCED reduction (mean over positive frames + mean over
+    negative frames, averaged), not a flat mean over all (B, T) frames. With
+    a flat mean, boundary frames (often ~1 per hundreds of frames) get
+    averaged away regardless of how high alpha/miss_penalty are set -- the
+    loss value barely moves even when every boundary is missed. Balanced
+    reduction guarantees missed boundaries actually raise the reported loss.
     """
     probs = torch.sigmoid(logits)
     bce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
@@ -67,7 +74,14 @@ def focal_loss_with_logits(logits, targets, alpha=0.9, gamma_pos=0.5, gamma_neg=
     is_missed_boundary = (targets >= 0.5) & (probs < 0.5)
     penalty = torch.where(is_missed_boundary, torch.full_like(bce, miss_penalty), torch.ones_like(bce))
 
-    return (penalty * focal_term * bce).mean()
+    per_frame_loss = penalty * focal_term * bce
+
+    pos_mask = targets >= 0.5
+    neg_mask = ~pos_mask
+    pos_loss = per_frame_loss[pos_mask].mean() if pos_mask.any() else per_frame_loss.new_tensor(0.0)
+    neg_loss = per_frame_loss[neg_mask].mean() if neg_mask.any() else per_frame_loss.new_tensor(0.0)
+
+    return pos_loss + neg_loss
 
 
 def train_one_epoch(model, dataloader, optimizer, device, lambda_anticipation=5.0,
