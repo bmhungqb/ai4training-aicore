@@ -63,7 +63,7 @@ def prepare_gebd_annotations(cfg, root, name, split):
     if cfg.INPUT.END_TO_END:
         if name == 'GEBD':
             filename = 'end_to_end{}_'.format(cfg.INPUT.SEQUENCE_LENGTH) + filename
-        elif name == 'TAPOS':
+        elif name in ('TAPOS', 'SEWING'):
             filename = 'end_to_end_slice{}_fps10_'.format(cfg.INPUT.SEQUENCE_LENGTH) + filename
 
     if num_annotators > 1:
@@ -147,7 +147,7 @@ def prepare_gebd_annotations(cfg, root, name, split):
                 downsample = ds
             # if 'val' in split:
             #         count+=1
-            if name == 'TAPOS':
+            if name in ('TAPOS', 'SEWING'):
 
                 # fps not fixed, w/o padding
                 # num_slices = max(round(video_duration // 10), 1)
@@ -340,6 +340,8 @@ class GEBDDataset(Dataset):
             self.ann_path = os.path.join('data/Kinetics-GEBD', f'k400_mr345_{split}_min_change_duration0.3.pkl')
         elif name == 'TAPOS':
             self.ann_path = os.path.join('data/TAPOS', f'tapos_gt_{split}.pkl')
+        elif name == 'SEWING':
+            self.ann_path = os.path.join('data/efficient_gebd_dataset', f'{split}_annotation.pkl')
         else:
             NotImplemented
         self.cfg = cfg
@@ -402,7 +404,7 @@ class GEBDDataset(Dataset):
             'labels': torch.tensor(item['label'], dtype=torch.int64),
             'vid': vid,
         }
-        if self.name == 'TAPOS':
+        if self.name in ('TAPOS', 'SEWING'):
             sample['num_slices'] = item['num_slices']
         if self.cfg.INPUT.END_TO_END:
             sample['frame_indices'] = torch.tensor(block_indices)

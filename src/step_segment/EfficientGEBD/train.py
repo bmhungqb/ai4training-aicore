@@ -20,7 +20,7 @@ from datasets import build_dataloader
 from modeling import cfg, build_model
 from solver import build_optimizer
 from utils.distribute import synchronize, all_gather, is_main_process
-from utils.eval import eval_f1, eval_f1_with_boundarys, do_eval
+from utils.eval import eval_f1, eval_f1_with_boundarys, do_eval, eval_f1_absolute_tol
 from utils.misc import SmoothedValue, MetricLogger
 import torch.backends.cudnn as cudnn
 import random, shutil
@@ -331,7 +331,7 @@ def validate_end_to_end(cfg, args, model, device, data_loader, epoch):
                     model_pred_dict[vid]['frame_idx'] = frame_indices.tolist()
                     model_pred_dict[vid]['scores'] = [s.tolist() for s in scores]
             
-                    if data_loader.dataset.name == 'TAPOS':
+                    if data_loader.dataset.name in ('TAPOS', 'SEWING'):
                         model_pred_dict[vid]['num_slices'] = inputs['num_slices'][batch_idx]
 
             # if num_frames >= 10000:
@@ -359,7 +359,7 @@ def validate_end_to_end(cfg, args, model, device, data_loader, epoch):
     
     num_heads = len(cfg.MODEL.HEAD_CHOICE)
     # gather scores of slices inside the same video
-    if data_loader.dataset.name == 'TAPOS':
+    if data_loader.dataset.name in ('TAPOS', 'SEWING'):
         model_pred_dict_new = defaultdict(dict)
         vnames = []
         for vid in model_pred_dict.keys():
@@ -425,6 +425,24 @@ def validate_end_to_end(cfg, args, model, device, data_loader, epoch):
         with open(save_path, 'wb') as f:
             pickle.dump(exit_dict, f)
         print(f'Saved flitered results to {save_path}.')
+
+        if data_loader.dataset.name == 'SEWING':
+            # relative thresholds scale with video length, which is too loose for
+            # long, densely-annotated sewing videos. Report absolute-tolerance F1
+            # (fixed seconds window) side-by-side for a more realistic estimate.
+            abs_tol_list = [0.3, 0.5, 1.0, 2.0]
+            abs_results = eval_f1_absolute_tol(model_pred_dict, gt_path,
+                                                num_heads=num_heads,
+                                                threshold=cfg.TEST.THRESHOLD,
+                                                abs_tol_list=abs_tol_list)
+            for head in range(num_heads):
+                abs_tabulate_data = [
+                    ['Recall'] + [abs_results[t][head][1] for t in abs_tol_list],
+                    ['Precision'] + [abs_results[t][head][2] for t in abs_tol_list],
+                    ['F1'] + [abs_results[t][head][0] for t in abs_tol_list],
+                ]
+                print(f'Absolute-tolerance results (head {head}) for {data_loader.dataset.name}_{data_loader.dataset.split}:')
+                print(tabulate(abs_tabulate_data, headers=[f'+/-{t}s' for t in abs_tol_list], floatfmt='.4f'))
 
     metrics_list = []
 

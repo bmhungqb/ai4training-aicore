@@ -105,6 +105,117 @@ def do_eval(gt_dict, pred_dict, head=None, threshold=0.05):
     return f1, rec, prec
 
 
+def do_eval_absolute_tol(gt_dict, pred_dict, head=None, abs_tol_s=0.5):
+    # recall precision f1 for an absolute time tolerance (in seconds), instead of
+    # the relative-to-video-length threshold used by `do_eval`. This is more
+    # meaningful for long videos with densely-packed boundaries (e.g. sewing
+    # step segmentation), where a fixed fraction of the video length can span
+    # several steps.
+    tp_all = 0
+    num_pos_all = 0
+    num_det_all = 0
+
+    for vid_id in list(gt_dict.keys()):
+
+        if gt_dict[vid_id]['f1_consis_avg'] < 0.3:
+            continue
+
+        if vid_id not in pred_dict.keys():
+            continue
+
+        bdy_timestamps_det = pred_dict[vid_id]
+        if head is not None:
+            bdy_timestamps_det = bdy_timestamps_det[head]
+
+        myfps = gt_dict[vid_id]['fps']
+        ins_start = 0
+        ins_end = gt_dict[vid_id]['num_frames'] - 1
+
+        tmp = []
+        for det in bdy_timestamps_det:
+            tmpdet = det + ins_start
+            if tmpdet >= ins_start and tmpdet <= ins_end:
+                tmp.append(tmpdet)
+        bdy_timestamps_det = tmp
+        if bdy_timestamps_det == []:
+            num_pos_all += len(gt_dict[vid_id]['substages_myframeidx'][0])
+            continue
+        num_det = len(bdy_timestamps_det)
+        num_det_all += num_det
+
+        abs_tol_frames = abs_tol_s * myfps
+
+        bdy_timestamps_list_gt_allraters = gt_dict[vid_id]['substages_myframeidx']
+        f1_tmplist = np.zeros(len(bdy_timestamps_list_gt_allraters))
+        tp_tmplist = np.zeros(len(bdy_timestamps_list_gt_allraters))
+        num_pos_tmplist = np.zeros(len(bdy_timestamps_list_gt_allraters))
+
+        for ann_idx in range(len(bdy_timestamps_list_gt_allraters)):
+            bdy_timestamps_list_gt = bdy_timestamps_list_gt_allraters[ann_idx]
+            num_pos = len(bdy_timestamps_list_gt)
+            tp = 0
+            offset_arr = np.zeros((len(bdy_timestamps_list_gt), len(bdy_timestamps_det)))
+            for ann1_idx in range(len(bdy_timestamps_list_gt)):
+                for ann2_idx in range(len(bdy_timestamps_det)):
+                    offset_arr[ann1_idx, ann2_idx] = abs(bdy_timestamps_list_gt[ann1_idx] - bdy_timestamps_det[ann2_idx])
+            for ann1_idx in range(len(bdy_timestamps_list_gt)):
+                if offset_arr.shape[1] == 0:
+                    break
+                min_idx = np.argmin(offset_arr[ann1_idx, :])
+                if offset_arr[ann1_idx, min_idx] <= abs_tol_frames:
+                    tp += 1
+                    offset_arr = np.delete(offset_arr, min_idx, 1)
+
+            num_pos_tmplist[ann_idx] = num_pos
+            fn = num_pos - tp
+            fp = num_det - tp
+            rec = 1 if num_pos == 0 else tp / (tp + fn)
+            prec = 0 if (tp + fp) == 0 else tp / (tp + fp)
+            f1 = 0 if (rec + prec) == 0 else 2 * rec * prec / (rec + prec)
+            tp_tmplist[ann_idx] = tp
+            f1_tmplist[ann_idx] = f1
+
+        ann_best = np.argmax(f1_tmplist)
+        tp_all += tp_tmplist[ann_best]
+        num_pos_all += num_pos_tmplist[ann_best]
+
+    fn_all = num_pos_all - tp_all
+    fp_all = num_det_all - tp_all
+    rec = 1 if num_pos_all == 0 else tp_all / (tp_all + fn_all)
+    prec = 0 if (tp_all + fp_all) == 0 else tp_all / (tp_all + fp_all)
+    f1 = 0 if (rec + prec) == 0 else 2 * rec * prec / (rec + prec)
+
+    return f1, rec, prec
+
+
+def eval_f1_absolute_tol(my_pred, gt_path, num_heads=1, threshold=0.5, abs_tol_list=(0.3, 0.5, 1.0, 2.0)):
+    # Same detection extraction as `eval_f1`, but scored with `do_eval_absolute_tol`
+    # (fixed second-based tolerance) instead of a relative-to-video-length threshold.
+    with open(gt_path, 'rb') as f:
+        gt_dict = pickle.load(f, encoding='lartin1')
+
+    pred_dict = dict()
+    for vid in my_pred:
+        if vid in gt_dict:
+            predictions = []
+            for head in range(num_heads):
+                det_t, _ = get_idx_from_score_by_threshold(threshold=threshold,
+                                                            seq_indices=my_pred[vid]['frame_idx'],
+                                                            seq_scores=my_pred[vid]['scores'][head])
+                predictions.append(det_t)
+            pred_dict[vid] = predictions
+
+    results = {}
+    for abs_tol_s in abs_tol_list:
+        res = []
+        for head in range(num_heads):
+            f1, rec, prec = do_eval_absolute_tol(gt_dict, pred_dict, head, abs_tol_s=abs_tol_s)
+            res.append((f1, rec, prec))
+        results[abs_tol_s] = res
+
+    return results
+
+
 def get_idx_from_score_by_threshold(threshold=0.5, seq_indices=None, seq_scores=None):
     seq_indices = np.array(seq_indices)
     seq_scores = np.array(seq_scores)

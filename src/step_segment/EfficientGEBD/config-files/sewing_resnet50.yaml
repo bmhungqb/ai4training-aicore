@@ -33,7 +33,7 @@ INPUT:
   ARGUMENT: True
   ANNOTATORS: 1            # single annotator (our step_segments.json has one GT source)
   END_TO_END: True
-  SEQUENCE_LENGTH: 100      # frames per video sampled uniformly
+  SEQUENCE_LENGTH: 100      # frames per 10s slice (slice-based sampling, TAPOS-style)
   FRAME_MASK: True
 
 SOLVER:
