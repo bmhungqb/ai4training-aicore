@@ -25,6 +25,7 @@
 | Slice 10s hard-cut làm mất context quanh điểm cắt | 🟡 WARNING | Issue 9 — WINDOW_SIZE chỉ ±0.8s, boundary gần mốc 10s bị giảm context |
 | Config CSN chưa được tune ổn định (SGD, LR 1e-2, AMP) | 🟢 MINOR | Issue 10 — chỉ `sewing_resnet50.yaml` đã được tune sau sự cố NaN |
 | `WARMUP_EPOCHS` chưa được dùng → metric dao động mạnh đầu training | ✅ FIXED | Issue 11 — thêm LR warmup thật (LambdaLR) + sửa log checkpoint gây nhầm lẫn |
+| Recall luôn thấp (precision ≈ 1.0), `SOLVER.SIGMA` dead config | ✅ FIXED (cần tune thêm) | Issue 12 — wire `SOLVER.SIGMA` vào target smoothing, hạ `TEST.THRESHOLD` 0.3→0.2 |
 
 ---
 
@@ -357,18 +358,54 @@ Ngoài ra, dòng log `print('Saved to {}'.format(save_path))` nằm **ngoài** k
 
 ---
 
+## Issue 12 (FIXED): Recall Luôn Thấp (Precision ≈ 1.0) — `SOLVER.SIGMA` Là Dead Config + Threshold Quá Chặt
+
+### Mô tả
+
+Sau khi các fix trước đã giúp training học được tín hiệu thật (không còn loss=0 hằng số), quan sát thực tế vẫn cho thấy **recall luôn rất thấp trong khi precision gần 1.0** (ví dụ Epoch05: Recall 0.22 / Precision 0.97). Model rất "thận trọng" — chỉ báo boundary khi cực kỳ chắc chắn, bỏ sót phần lớn các bước may thật. Đào sâu tìm ra 2 nguyên nhân:
+
+**a) `SOLVER.SIGMA` được định nghĩa trong config nhưng chưa từng được dùng thật:**
+
+```python
+# datasets/dataset.py (trước fix)
+labels_valid = prepare_gaussian_targets(labels_valid)   # luôn dùng sigma=1 mặc định, KHÔNG đọc cfg.SOLVER.SIGMA
+```
+
+Với `sigma=1` (mặc định hard-code), vùng "positive" quanh mỗi boundary rất hẹp — đo thực tế trên `train_annotation.pkl`:
+
+```
+sigma=1: mean soft target=0.1802, frac target>0.5=0.1863   (~18% frame có tín hiệu boundary)
+sigma=2: mean soft target=0.2981, frac target>0.5=0.3117   (~31% frame có tín hiệu boundary)
+```
+
+Vùng positive quá hẹp khiến bài toán phân loại từng-frame trở nên khó và mất cân bằng hơn mức cần thiết, đẩy model về hướng "chỉ báo khi rất chắc" (recall thấp).
+
+**b) `TEST.THRESHOLD=0.3` quá chặt so với mức độ calibration hiện tại của model:** với precision quan sát được gần 1.0 (dư địa lớn), threshold có thể hạ thấp để đánh đổi lấy recall mà không sợ sụp độ chính xác ngay lập tức.
+
+### Giải pháp đã áp dụng
+
+- `datasets/dataset.py`: truyền `sigma=cfg.SOLVER.SIGMA` vào `prepare_gaussian_targets(...)` thay vì dùng mặc định.
+- Thêm `sigma{value}` vào tên file cache (`end_to_end_slice{L}_fps10_sigma{S}_...`) để thay đổi `SOLVER.SIGMA` tự động invalidate cache cũ, tránh tái sử dụng nhãn sai lệch.
+- Tăng `SOLVER.SIGMA: 1 → 2` trong `sewing_resnet50.yaml` / `sewing_csn.yaml` (~31% frame positive thay vì ~18%).
+- Giảm `TEST.THRESHOLD: 0.3 → 0.2` trong cả hai config để cho phép model "mạnh dạn" báo boundary hơn.
+
+> [!NOTE]
+> Đây là các tham số cần tune tiếp theo dữ liệu thực nghiệm: nếu recall vẫn thấp sau vài chục epoch, cân nhắc tăng `SIGMA` lên 2.5–3 hoặc giảm `TEST.THRESHOLD` xuống 0.15; nếu precision sụp quá nhanh thì lùi lại. Nên dùng bảng absolute-tolerance (Issue 2) để chọn threshold tối ưu thay vì cố định `0.3`/`0.2`.
+
+---
+
 ## Tệp Liên Quan
 
 | Tệp | Vai trò |
 |---|---|
 | [`tools/prepare_efficient_gebd_dataset.py`](../tools/prepare_efficient_gebd_dataset.py) | Build annotation pickle từ `step_segments.json` |
-| [`src/step_segment/EfficientGEBD/datasets/dataset.py`](../src/step_segment/EfficientGEBD/datasets/dataset.py) | Logic sampling frames, gán nhãn Gaussian |
+| [`src/step_segment/EfficientGEBD/datasets/dataset.py`](../src/step_segment/EfficientGEBD/datasets/dataset.py) | Logic sampling frames, gán nhãn Gaussian (nay đọc `SOLVER.SIGMA`) |
 | [`src/step_segment/EfficientGEBD/datasets/__init__.py`](../src/step_segment/EfficientGEBD/datasets/__init__.py) | Build dataloader, ROOT path mapping |
 | [`src/step_segment/EfficientGEBD/utils/eval.py`](../src/step_segment/EfficientGEBD/utils/eval.py) | Hàm F1 evaluation (relative + absolute tolerance) |
-| [`src/step_segment/EfficientGEBD/train.py`](../src/step_segment/EfficientGEBD/train.py) | Training loop, validation, slice-merge logic, checkpoint selection |
+| [`src/step_segment/EfficientGEBD/train.py`](../src/step_segment/EfficientGEBD/train.py) | Training loop, validation, slice-merge logic, LR warmup, checkpoint selection |
 | [`src/step_segment/EfficientGEBD/modeling/e2e_model_diff_former.py`](../src/step_segment/EfficientGEBD/modeling/e2e_model_diff_former.py) | E2EModelDiff forward/loss (Gaussian re-smoothing, pos_weight) |
 | [`src/step_segment/EfficientGEBD/modeling/baseline.py`](../src/step_segment/EfficientGEBD/modeling/baseline.py) | BaseModel forward/loss (Gaussian re-smoothing, pos_weight) |
-| [`src/step_segment/EfficientGEBD/modeling/config.py`](../src/step_segment/EfficientGEBD/modeling/config.py) | Định nghĩa `SOLVER.POS_WEIGHT` và các default config |
+| [`src/step_segment/EfficientGEBD/modeling/config.py`](../src/step_segment/EfficientGEBD/modeling/config.py) | Định nghĩa `SOLVER.POS_WEIGHT`, `SOLVER.SIGMA` và các default config |
 | [`src/step_segment/EfficientGEBD/config-files/sewing_resnet50.yaml`](../src/step_segment/EfficientGEBD/config-files/sewing_resnet50.yaml) | Config ResNet50 backbone |
 | [`src/step_segment/EfficientGEBD/config-files/sewing_csn.yaml`](../src/step_segment/EfficientGEBD/config-files/sewing_csn.yaml) | Config CSN backbone |
 
@@ -387,3 +424,4 @@ Ngoài ra, dòng log `print('Saved to {}'.format(save_path))` nằm **ngoài** k
 9. 🟡 **Issue 9** — Định lượng ảnh hưởng của slice hard-cut lên recall quanh mốc 10s
 10. 🟢 **Issue 10** — Tune ổn định config CSN, dọn `TEST.RELDIS_THRESHOLD` không dùng
 11. ✅ **Issue 11** — Thêm LR warmup thật + sửa log checkpoint gây nhầm lẫn *(đã fix)*
+12. ✅ **Issue 12** — Wire `SOLVER.SIGMA` + hạ `TEST.THRESHOLD` để cải thiện recall *(đã fix, cần theo dõi/tune thêm)*
