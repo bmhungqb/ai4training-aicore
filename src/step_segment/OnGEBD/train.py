@@ -159,6 +159,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=20, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=2, help="Batch size")
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    parser.add_argument("--resume", type=str, default=None, help="Path to checkpoint to resume from")
     args = parser.parse_args()
 
     # Create dummy args for EfficientGEBD's build_dataloader
@@ -181,6 +182,14 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = OnGEBDModel(feature_dim=2048, hidden_dim=512).to(device)
+    
+    if args.resume:
+        if os.path.exists(args.resume):
+            print(f"Resuming from checkpoint: {args.resume}")
+            model.load_state_dict(torch.load(args.resume, map_location=device))
+        else:
+            print(f"Warning: Checkpoint {args.resume} not found. Starting from scratch.")
+
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
     print(f"Starting OnGEBD Training for {args.epochs} epochs on device: {device}")
