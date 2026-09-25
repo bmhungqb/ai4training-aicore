@@ -58,11 +58,11 @@ def train_one_epoch(model, dataloader, optimizer, device, lambda_anticipation=0.
     total_bce = 0
     total_mse = 0
 
-    for batch_idx, (frames, labels) in enumerate(dataloader):
+    for batch_idx, batch in enumerate(dataloader):
         # frames shape: (B, T, C, H, W)
         # labels shape: (B, T) - 1 for boundary, 0 for non-boundary
-        frames = frames.to(device)
-        labels = labels.to(device).float()
+        frames = batch['imgs'].to(device)
+        labels = batch['labels'].to(device).float()
         soft_labels = smooth_labels(labels, sigma=label_sigma)
 
         optimizer.zero_grad()
@@ -103,9 +103,9 @@ def evaluate_boundaries(model, dataloader, device, prob_threshold=0.5, tolerance
     model.eval()
     tp = fp = fn = 0
 
-    for frames, labels in dataloader:
-        frames = frames.to(device)
-        labels = labels.to(device)
+    for batch in dataloader:
+        frames = batch['imgs'].to(device)
+        labels = batch['labels'].to(device)
         B, T = labels.shape
 
         state = model.init_state(batch_size=B, device=device)
