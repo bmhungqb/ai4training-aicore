@@ -24,6 +24,7 @@
 | Inductive bias của DiffFormer có thể không phù hợp sewing | 🟡 WARNING | Issue 8 — kiến trúc dựa trên frame dissimilarity, sewing có thể ngược lại |
 | Slice 10s hard-cut làm mất context quanh điểm cắt | 🟡 WARNING | Issue 9 — WINDOW_SIZE chỉ ±0.8s, boundary gần mốc 10s bị giảm context |
 | Config CSN chưa được tune ổn định (SGD, LR 1e-2, AMP) | 🟢 MINOR | Issue 10 — chỉ `sewing_resnet50.yaml` đã được tune sau sự cố NaN |
+| `WARMUP_EPOCHS` chưa được dùng → metric dao động mạnh đầu training | ✅ FIXED | Issue 11 — thêm LR warmup thật (LambdaLR) + sửa log checkpoint gây nhầm lẫn |
 
 ---
 
@@ -329,6 +330,33 @@ Sau sự cố NaN khi train, chỉ `sewing_resnet50.yaml` được điều chỉ
 
 ---
 
+## Issue 11 (FIXED): `WARMUP_EPOCHS` Chưa Được Dùng → LR Full Ngay Từ Epoch 0 → Metric Dao Động Mạnh
+
+### Mô tả
+
+`SOLVER.WARMUP_EPOCHS: 5` được định nghĩa trong config nhưng **chưa từng được dùng** ở `train.py`:
+
+```python
+scheduler = MultiStepLR(optimizer, milestones=cfg.SOLVER.MILESTONES)   # không có warmup
+```
+
+Do đó LR luôn ở mức full (`1e-4`) ngay từ epoch 0 (khớp với log luôn hiển thị `lr:0.00010`). Kết hợp với `POS_WEIGHT=4.5` (khuếch đại gradient trên các frame positive hiếm), training rất dễ overshoot khỏi một điểm tốt vừa tìm được, gây dao động mạnh giữa các epoch liên tiếp — quan sát thực tế:
+
+```
+Epoch04: F1@0.05 = 0.0000
+Epoch05: F1@0.05 = 0.3529   (Recall 0.2155, Precision 0.9740)
+Epoch06: F1@0.05 = 0.0394   (Recall 0.0201, Precision 1.0000)
+```
+
+Ngoài ra, dòng log `print('Saved to {}'.format(save_path))` nằm **ngoài** khối `if f1 > best_f1:` nên in ra mỗi epoch dù `model_best.pth` có thực sự được ghi đè hay không — dễ gây hiểu lầm rằng checkpoint tốt (epoch 5) đã bị mất khi thấy epoch 6 tệ hơn (thực tế `torch.save` chỉ chạy khi `f1 > best_f1` nên checkpoint tốt vẫn an toàn, chỉ có log gây nhầm lẫn).
+
+### Giải pháp đã áp dụng
+
+- Thay `MultiStepLR` bằng `LambdaLR` với warmup tuyến tính trong `WARMUP_EPOCHS` epoch đầu (`(epoch+1)/warmup_epochs`), sau đó áp dụng decay theo `MILESTONES`/`GAMMA` như cũ — khớp với ý định gốc của config.
+- Sửa log: chỉ in `'Saved to {save_path}'` khi thực sự lưu checkpoint mới; nếu không cải thiện thì in rõ `'F1 {f1} did not improve over best {best_f1}, not saving.'`.
+
+---
+
 ## Tệp Liên Quan
 
 | Tệp | Vai trò |
@@ -358,3 +386,4 @@ Sau sự cố NaN khi train, chỉ `sewing_resnet50.yaml` được điều chỉ
 8. 🟡 **Issue 8** — Validate trực quan xem model có bắt đúng tín hiệu boundary hay không
 9. 🟡 **Issue 9** — Định lượng ảnh hưởng của slice hard-cut lên recall quanh mốc 10s
 10. 🟢 **Issue 10** — Tune ổn định config CSN, dọn `TEST.RELDIS_THRESHOLD` không dùng
+11. ✅ **Issue 11** — Thêm LR warmup thật + sửa log checkpoint gây nhầm lẫn *(đã fix)*
