@@ -10,8 +10,12 @@ MODEL:
   BACKBONE:
     NAME: 'resnet50'       # torchvision pretrained resnet50
   DIMENSION: 512
-  WINDOW_SIZE: 8
-  K: 8
+  WINDOW_SIZE: 4
+  K: 4          # was 8 (window=17 frames); sewing boundaries are much denser than
+                # generic GEBD (median gap ~21-28 frames, p5 ~8-9 frames): with K=8,
+                # 24-39% of local windows spanned >1 boundary, corrupting the
+                # diff-based single-transition assumption. K=4 (window=9) cuts that
+                # down to ~4-10%.
   NUM_TSLICE: 10
   SIMILARITY_GROUP: 4
   SIMILARITY_FUNC: 'cosine'
