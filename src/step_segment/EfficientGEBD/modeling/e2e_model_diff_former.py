@@ -180,7 +180,7 @@ class DiffHead(nn.Module):
         
         similarity_func = self.similarity_func
         if similarity_func == 'cosine':
-            sim = F.cosine_similarity(x.unsqueeze(2), x.unsqueeze(1), dim=-1)  # (b*nw, nf, nf, nl*3)
+            sim = F.cosine_similarity(x.unsqueeze(2), x.unsqueeze(1), dim=-1, eps=1e-8)  # (b*nw, nf, nf, nl*3)
         else:
             raise NotImplemented
         diff_map = sim.permute(0, 3, 1, 2).contiguous()  # (b*nw, nl*3, nf, nf)

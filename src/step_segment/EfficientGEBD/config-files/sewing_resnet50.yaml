@@ -42,8 +42,8 @@ SOLVER:
   MILESTONES: [80, 120]
   GAMMA: 0.1
   BATCH_SIZE: 2
-  AMPE: True
-  LR: 1e-3
+  AMPE: False
+  LR: 1e-4
   MOMENTUM: 0.9
   WEIGHT_DECAY: 1e-4
   CLIP_GRAD: 1.0
