@@ -517,13 +517,13 @@ def main(cfg, args):
         # Warm-start model weights only (e.g. from a checkpoint trained before a
         # config/target-definition change such as SOLVER.SIGMA or the LR scheduler
         # class) -- optimizer/scheduler/epoch all start fresh from scratch.
-        state_dict = torch.load(args.pretrained, map_location='cpu')
+        state_dict = torch.load(args.pretrained, map_location='cpu', weights_only=False)
         model.load_state_dict(state_dict['model'])
         if is_main_process():
             print('Warm-started model weights from {} (epoch {}); optimizer/scheduler/epoch reset.'.format(
                 args.pretrained, state_dict.get('epoch')), flush=True)
     elif args.resume:
-        state_dict = torch.load(args.resume, map_location='cpu')
+        state_dict = torch.load(args.resume, map_location='cpu', weights_only=False)
         model.load_state_dict(state_dict['model'])
         start_epoch = state_dict['epoch']
         if is_main_process():

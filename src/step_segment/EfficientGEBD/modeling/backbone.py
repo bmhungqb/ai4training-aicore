@@ -31,7 +31,7 @@ class CSN(nn.Module):
         #     config.model.backbone.pretrained = None
         # config.model.backbone.bn_frozen = True
         model = MODELS.build(config.model)
-        ckpt = torch.load(checkpoint_path)
+        ckpt = torch.load(checkpoint_path, weights_only=False)
         # print('####################')
         # print([k for k in ckpt['state_dict'].keys()])
         # print('####################')
@@ -75,7 +75,7 @@ class CSNR50(nn.Module):
         #     config.model.backbone.pretrained = None
         # config.model.backbone.bn_frozen = True
         model = MODELS.build(config.model)
-        ckpt = torch.load(checkpoint_path)
+        ckpt = torch.load(checkpoint_path, weights_only=False)
         # print('####################')
         # print([k for k in ckpt['state_dict'].keys()])
         # print('####################')
@@ -130,7 +130,7 @@ class VideoMAEv2(nn.Module):
             config.model.backbone.pretrained = None
         config.model.backbone.bn_frozen = True
         model = MODELS.build(config.model)
-        ckpt = torch.load(checkpoint_path)
+        ckpt = torch.load(checkpoint_path, weights_only=False)
         new_ckpt = {}
         for k, v in ckpt.items():
             if 'backbone' in k and 'patch_embed' not in k:
