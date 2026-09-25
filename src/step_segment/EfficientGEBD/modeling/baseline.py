@@ -384,7 +384,7 @@ class BaseModel(nn.Module):
         if self.training:
             losses = []
             targets = targets.to(logits_list[0].dtype)
-            if self.dataset != 'TAPOS':
+            if self.dataset not in ('TAPOS', 'SEWING'):
                 targets = prepare_gaussian_targets(targets)
             targets = targets.view(-1)
 
