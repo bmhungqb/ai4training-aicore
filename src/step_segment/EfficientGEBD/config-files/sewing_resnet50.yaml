@@ -38,7 +38,7 @@ INPUT:
 
 SOLVER:
   MAX_EPOCHS: 150
-  WARMUP_EPOCHS: 5
+  WARMUP_EPOCHS: 0   # disabled: train at full LR from epoch 0
   MILESTONES: [80, 120]
   GAMMA: 0.1
   BATCH_SIZE: 2

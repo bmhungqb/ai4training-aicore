@@ -480,6 +480,17 @@ def validate_end_to_end(cfg, args, model, device, data_loader, epoch):
         else:
             f1, rec, prec = results[0.05][head]
         print('F1@0.05: {:.4f}, Rec: {:.4f}, Prec: {:.4f}'.format(f1, rec, prec))
+
+        if not cfg.TEST.DYNAMIC and data_loader.dataset.name == 'SEWING':
+            # Issue 5 fix: relative F1@0.05 is too loose for sewing (tolerance
+            # scales with video length, e.g. ~8s for a ~2300-frame video, far
+            # wider than an actual sewing step). Use the absolute-tolerance F1
+            # (fixed seconds window) to decide checkpoint quality instead.
+            checkpoint_tol = 1.0
+            f1, rec, prec = abs_results[checkpoint_tol][head]
+            print('Checkpoint metric (abs-tol +/-{}s): F1: {:.4f}, Rec: {:.4f}, Prec: {:.4f}'.format(
+                checkpoint_tol, f1, rec, prec))
+
         metrics = {}
         metrics['F1'] = f1
         metrics['Rec'] = rec
