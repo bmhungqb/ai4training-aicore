@@ -1,4 +1,7 @@
-import pickle5 as pickle
+try:
+    import pickle5 as pickle
+except ImportError:
+    import pickle
 import numpy as np
 
 
