@@ -10,6 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from tqdm import tqdm
+from scipy.signal import find_peaks
 from model import OnGEBDModel
 
 def smooth_labels(labels, sigma=1.0):
@@ -32,18 +33,23 @@ def smooth_labels(labels, sigma=1.0):
     return smoothed.squeeze(1).clamp(0, 1)
 
 
-def focal_loss_with_logits(logits, targets, alpha=0.25, gamma=2.0):
+def focal_loss_with_logits(logits, targets, alpha=0.9, gamma=2.0):
     """
     Binary focal loss to counter the severe boundary/non-boundary class
     imbalance (boundaries are a tiny minority of frames).
     """
     bce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
     p_t = torch.exp(-bce)
-    focal_term = alpha * (1 - p_t) ** gamma
+    
+    # alpha_t gives high weight (alpha) to boundary frames (targets=1) 
+    # and low weight (1-alpha) to non-boundary frames (targets=0)
+    alpha_t = targets * alpha + (1 - targets) * (1 - alpha)
+    
+    focal_term = alpha_t * (1 - p_t) ** gamma
     return (focal_term * bce).mean()
 
 
-def train_one_epoch(model, dataloader, optimizer, device, lambda_anticipation=0.5,
+def train_one_epoch(model, dataloader, optimizer, device, lambda_anticipation=5.0,
                      loss_type="focal", label_sigma=1.0, pos_weight=None):
     """
     Train the OnGEBD model for one epoch.
@@ -100,7 +106,7 @@ def train_one_epoch(model, dataloader, optimizer, device, lambda_anticipation=0.
 
 
 @torch.no_grad()
-def evaluate_boundaries(model, dataloader, device, prob_threshold=0.5, tolerance=2):
+def evaluate_boundaries(model, dataloader, device, prob_threshold=0.1, tolerance=2):
     """
     Streaming-appropriate evaluation: precision/recall/F1 with a tolerance
     window (standard for GEBD, since exact-frame matching is too strict
@@ -123,11 +129,15 @@ def evaluate_boundaries(model, dataloader, device, prob_threshold=0.5, tolerance
             p, state = model.step(frames[:, t], state)
             probs.append(p)
         probs = torch.stack(probs, dim=1)  # (B, T)
-        preds = (probs >= prob_threshold)
 
         for b in range(B):
             gt_idx = (labels[b] == 1).nonzero(as_tuple=True)[0].tolist()
-            pred_idx = preds[b].nonzero(as_tuple=True)[0].tolist()
+            
+            # GEBD standard: Find local peaks instead of a hard global threshold
+            prob_np = probs[b].cpu().numpy()
+            peaks, _ = find_peaks(prob_np, height=prob_threshold, distance=10)
+            pred_idx = peaks.tolist()
+
             matched_gt = set()
             for p_idx in pred_idx:
                 match = next((g for g in gt_idx if g not in matched_gt and abs(g - p_idx) <= tolerance), None)
