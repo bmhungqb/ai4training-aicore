@@ -33,20 +33,41 @@ def smooth_labels(labels, sigma=1.0):
     return smoothed.squeeze(1).clamp(0, 1)
 
 
-def focal_loss_with_logits(logits, targets, alpha=0.9, gamma=2.0):
+def focal_loss_with_logits(logits, targets, alpha=0.9, gamma_pos=0.5, gamma_neg=2.0, miss_penalty=2.0):
     """
-    Binary focal loss to counter the severe boundary/non-boundary class
-    imbalance (boundaries are a tiny minority of frames).
+    Asymmetric focal loss that penalizes MISSED boundaries (false negatives)
+    more heavily than false positives.
+
+    Standard focal loss (single gamma) actually down-weights hard positives
+    the *same* way it down-weights hard negatives -- which is wrong here,
+    since a missed boundary is a hard positive we want the model to keep
+    being pushed to fix, not suppressed.
+
+    - gamma_pos < gamma_neg: less down-weighting on hard/missed boundary
+      frames (targets~1), so they keep contributing strong gradient instead
+      of being treated as "already easy".
+    - alpha: base class weight for boundary vs non-boundary frames (kept as
+      before, high alpha => boundaries matter more).
+    - miss_penalty: extra multiplicative penalty applied only to frames that
+      are true boundaries the model currently predicts as non-boundary
+      (p_t < 0.5), i.e. an explicit false-negative penalty on top of the
+      asymmetric gamma.
     """
+    probs = torch.sigmoid(logits)
     bce = F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
-    p_t = torch.exp(-bce)
-    
-    # alpha_t gives high weight (alpha) to boundary frames (targets=1) 
-    # and low weight (1-alpha) to non-boundary frames (targets=0)
+
+    # p_t = probability assigned to the *correct* class
+    p_t = probs * targets + (1 - probs) * (1 - targets)
+
     alpha_t = targets * alpha + (1 - targets) * (1 - alpha)
-    
-    focal_term = alpha_t * (1 - p_t) ** gamma
-    return (focal_term * bce).mean()
+    gamma_t = targets * gamma_pos + (1 - targets) * gamma_neg
+    focal_term = alpha_t * (1 - p_t) ** gamma_t
+
+    # Extra penalty for missed boundaries: target=1 but model predicts < 0.5
+    is_missed_boundary = (targets >= 0.5) & (probs < 0.5)
+    penalty = torch.where(is_missed_boundary, torch.full_like(bce, miss_penalty), torch.ones_like(bce))
+
+    return (penalty * focal_term * bce).mean()
 
 
 def train_one_epoch(model, dataloader, optimizer, device, lambda_anticipation=5.0,
