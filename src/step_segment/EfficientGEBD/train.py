@@ -513,7 +513,16 @@ def main(cfg, args):
 
 
     start_epoch = -1
-    if args.resume:
+    if args.pretrained:
+        # Warm-start model weights only (e.g. from a checkpoint trained before a
+        # config/target-definition change such as SOLVER.SIGMA or the LR scheduler
+        # class) -- optimizer/scheduler/epoch all start fresh from scratch.
+        state_dict = torch.load(args.pretrained, map_location='cpu')
+        model.load_state_dict(state_dict['model'])
+        if is_main_process():
+            print('Warm-started model weights from {} (epoch {}); optimizer/scheduler/epoch reset.'.format(
+                args.pretrained, state_dict.get('epoch')), flush=True)
+    elif args.resume:
         state_dict = torch.load(args.resume, map_location='cpu')
         model.load_state_dict(state_dict['model'])
         start_epoch = state_dict['epoch']
@@ -574,9 +583,17 @@ def main(cfg, args):
     if args.resume:
         for name, obj in [('optimizer', optimizer), ('scheduler', scheduler)]:
             if name in state_dict:
-                obj.load_state_dict(state_dict[name])
-                if is_main_process():
-                    print('Loaded {} from {}'.format(name, args.resume), flush=True)
+                try:
+                    obj.load_state_dict(state_dict[name])
+                    if is_main_process():
+                        print('Loaded {} from {}'.format(name, args.resume), flush=True)
+                except Exception as e:
+                    # e.g. checkpoint was saved with a different scheduler class
+                    # (MultiStepLR -> LambdaLR after the warmup fix). Fall back to a
+                    # fresh optimizer/scheduler state rather than crashing.
+                    if is_main_process():
+                        print('Could not load {} from {} ({}); starting {} fresh.'.format(
+                            name, args.resume, e, name), flush=True)
 
     summary_writer = MetricLogger(log_dir=os.path.join(output_dir, 'logs')) if is_main_process() else None
     if summary_writer is not None:
@@ -646,7 +663,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--config-file", type=str, default='config-files/baseline.yaml')
     parser.add_argument("--local_rank", type=int)
-    parser.add_argument("--resume", type=str)
+    parser.add_argument("--resume", type=str, help='full resume: loads model + optimizer + scheduler + epoch')
+    parser.add_argument("--pretrained", type=str, help='warm-start model weights only; optimizer/scheduler/epoch start fresh (use after config/target changes)')
     parser.add_argument("--test-only", action='store_true', default=False)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--expname", type=str, default='test')
