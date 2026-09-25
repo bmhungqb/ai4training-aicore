@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.distributed as dist
 from tabulate import tabulate
 from torch.nn.parallel import DistributedDataParallel
-from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau, CosineAnnealingLR
+from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau, CosineAnnealingLR, LambdaLR
 from tqdm import tqdm
 
 from datasets import build_dataloader
@@ -549,7 +549,26 @@ def main(cfg, args):
         model = DistributedDataParallel(model, device_ids=[args.local_rank], find_unused_parameters=True)
 
     optimizer = build_optimizer(cfg, [p for p in model.parameters() if p.requires_grad])
-    scheduler = MultiStepLR(optimizer, milestones=cfg.SOLVER.MILESTONES)
+
+    # Linear-warmup for `SOLVER.WARMUP_EPOCHS` epochs (ramping 1/warmup_epochs -> 1.0),
+    # then fall back to the regular MultiStepLR decay at `SOLVER.MILESTONES`.
+    # (previously `WARMUP_EPOCHS` was defined in the config but never actually used:
+    # training started at full LR from epoch 0, which combined with POS_WEIGHT-amplified
+    # gradients on a tiny dataset caused large epoch-to-epoch metric swings early on.)
+    warmup_epochs = cfg.SOLVER.WARMUP_EPOCHS
+    milestones = cfg.SOLVER.MILESTONES
+    gamma = cfg.SOLVER.GAMMA
+
+    def lr_lambda(epoch):
+        if warmup_epochs > 0 and epoch < warmup_epochs:
+            return (epoch + 1) / warmup_epochs
+        factor = 1.0
+        for m in milestones:
+            if epoch >= m:
+                factor *= gamma
+        return factor
+
+    scheduler = LambdaLR(optimizer, lr_lambda=lr_lambda)
     # scheduler = CosineAnnealingLR(optimizer, T_max=cfg.SOLVER.MAX_EPOCHS, eta_min=1e-4)
     # scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.1, patience=2)
     if args.resume:
@@ -580,6 +599,7 @@ def main(cfg, args):
         if is_main_process():
             f1 = metrics_list['F1'] if cfg.TEST.DYNAMIC else metrics_list[-1]['F1']
             save_path = os.path.join(output_dir, 'model_best.pth')
+            saved_this_epoch = False
             if f1 > best_f1:
                 model_state_dict = model.module.state_dict() if isinstance(model, DistributedDataParallel) else model.state_dict()
                 # save_path = os.path.join(output_dir, 'model_best.pth')
@@ -591,6 +611,7 @@ def main(cfg, args):
                     'metrics': metrics_list
                 }, save_path)
                 best_f1 = f1
+                saved_this_epoch = True
             with open(os.path.join(output_dir, 'metrics.txt'), 'a') as f:
                 if cfg.TEST.DYNAMIC:
                     content = 'Dynamic inference, F1: {:.4f}, Rec: {:.4f}, Prec: {:.4f}'.format(
@@ -601,7 +622,10 @@ def main(cfg, args):
                                 .format(head+1, metrics_list[i]['F1'], metrics_list[i]['Rec'], metrics_list[i]['Prec']) \
                                     for i, head in enumerate(cfg.MODEL.HEAD_CHOICE)]) + '\n'
                 f.write(content)
-            print('Saved to {}'.format(save_path))
+            if saved_this_epoch:
+                print('Saved to {}'.format(save_path))
+            else:
+                print('F1 {:.4f} did not improve over best {:.4f}, not saving.'.format(f1, best_f1))
 
 
 def init_seeds(seed, cuda_deterministic=True):
