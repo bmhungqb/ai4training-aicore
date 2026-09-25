@@ -12,8 +12,8 @@ MODEL:
   BACKBONE:
     NAME: 'csn'            # 'csn' (R152) or 'csn_r50'
   DIMENSION: 512
-  WINDOW_SIZE: 4
-  K: 4          # see sewing_resnet50.yaml for rationale (boundary-spacing analysis)
+  WINDOW_SIZE: 8
+  K: 8
   NUM_TSLICE: 10
   SIMILARITY_GROUP: 4
   SIMILARITY_FUNC: 'cosine'
@@ -48,10 +48,10 @@ SOLVER:
   CLIP_GRAD: 0.0
   NUM_WORKERS: 8
   OPTIMIZER: 'SGD'
-  SIGMA: 2
+  SIGMA: 1
   POS_WEIGHT: 4.5    # counter class imbalance (only ~18% of frames are near a boundary)
 TEST:
-  THRESHOLD: 0.2
+  THRESHOLD: 0.3
   DYNAMIC: False
   THH: [0.35, 0.35, 0.35]
   THL: [0.0, 0.0, 0.0]

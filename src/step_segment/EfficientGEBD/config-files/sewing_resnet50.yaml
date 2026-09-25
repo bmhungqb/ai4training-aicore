@@ -10,11 +10,8 @@ MODEL:
   BACKBONE:
     NAME: 'resnet50'       # torchvision pretrained resnet50
   DIMENSION: 512
-  WINDOW_SIZE: 4
-  K: 4          # was 8 (window=17 frames); measured on train/val_annotation.pkl:
-                # median boundary spacing ~21-28 frames, p5 ~8-9 frames. With K=8,
-                # 24-39% of local diff-windows spanned >1 boundary, breaking the
-                # single-transition assumption. K=4 (window=9) cuts that to ~4-10%.
+  WINDOW_SIZE: 8
+  K: 8
   NUM_TSLICE: 10
   SIMILARITY_GROUP: 4
   SIMILARITY_FUNC: 'cosine'
@@ -52,16 +49,11 @@ SOLVER:
   CLIP_GRAD: 1.0
   NUM_WORKERS: 2
   OPTIMIZER: 'AdamW'
-  SIGMA: 2           # now actually wired into datasets/dataset.py (was a no-op before,
-                     # always used the hardcoded default sigma=1); widen the positive
-                     # target window around each boundary to give the model more room
-                     # to land a correct prediction -> helps recall
+  SIGMA: 1
   POS_WEIGHT: 4.5    # counter class imbalance (only ~18% of frames are near a boundary)
 
 TEST:
-  THRESHOLD: 0.2     # lower from 0.3: with the model currently under-confident
-                     # (precision near 1.0 / recall near 0), a high threshold filters
-                     # out almost every detection
+  THRESHOLD: 0.3
   DYNAMIC: False
   THH: [0.35, 0.35, 0.35]
   THL: [0.0, 0.0, 0.0]
