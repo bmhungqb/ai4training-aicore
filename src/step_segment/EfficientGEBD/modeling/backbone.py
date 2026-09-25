@@ -4,9 +4,8 @@ import einops
 import torch
 import torch.nn as nn
 
-import mmengine
-from mmaction.registry import MODELS
-from mmengine.registry import init_default_scope
+# mmengine and mmaction are only needed for CSN/VideoMAEv2 video backbones.
+# Imported lazily inside classes to allow ResNet backbones to run without mmcv.
 
 import torchvision
 from torchvision.ops.misc import FrozenBatchNorm2d
@@ -21,6 +20,10 @@ class CSN(nn.Module):
         # config_path = '/workspace/AR/mmaction2/configs/recognition/csn/ircsn_ig65m-pretrained-r152-bnfrozen_8xb12-32x2x1-58e_kinetics400-rgb.py'
         checkpoint_path = 'CSN-pretrained/CSN-ckpt/R152/ircsn_from_scratch_r152_ig65m_20200807-771c4135.pth'
         #checkpoint_path = '/workspace/AR/mmaction2/ckpt/ircsn_from_scratch_r152_ig65m_20200807-771c4135.pth'
+        import mmengine
+        from mmaction.registry import MODELS
+        from mmengine.registry import init_default_scope
+
         config = mmengine.Config.fromfile(config_path)
         init_default_scope(config.get('default_scope', 'mmaction'))
         # if hasattr(config.model, 'backbone') and config.model.backbone.get(
@@ -61,6 +64,10 @@ class CSNR50(nn.Module):
         #config_path ='/workspace/AR/mmaction2/configs/recognition/csn/ircsn_ig65m-pretrained-r50-bnfrozen_8xb12-32x2x1-58e_kinetics400-rgb.py'
         checkpoint_path ='CSN-pretrained/CSN-ckpt/R50/ircsn_from_scratch_r50_ig65m_20210617-ce545a37.pth'
         #checkpoint_path ='/workspace/AR/mmaction2/ckpt/ircsn_from_scratch_r50_ig65m_20210617-ce545a37.pth'
+        import mmengine
+        from mmaction.registry import MODELS
+        from mmengine.registry import init_default_scope
+
         config = mmengine.Config.fromfile(config_path)
         init_default_scope(config.get('default_scope', 'mmaction'))
         # if hasattr(config.model, 'backbone') and config.model.backbone.get(
@@ -112,6 +119,10 @@ class VideoMAEv2(nn.Module):
         super().__init__()
         config_path = '/workspace/AR/mmaction2/configs/recognition/videomaev2/vit-small-p16_videomaev2-vit-g-dist-k710-pre_16x4x1_kinetics-400.py'
         checkpoint_path = '/workspace/AR/mmaction2/ckpt/vit-small-p16_videomaev2-vit-g-dist-k710-pre_16x4x1_kinetics-400_20230510-25c748fd.pth'
+        import mmengine
+        from mmaction.registry import MODELS
+        from mmengine.registry import init_default_scope
+
         config = mmengine.Config.fromfile(config_path)
         init_default_scope(config.get('default_scope', 'mmaction'))
         if hasattr(config.model, 'backbone') and config.model.backbone.get(
