@@ -1,9 +1,15 @@
+import sys
+import os
+import argparse
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'EfficientGEBD'))
+from datasets import build_dataloader
+from modeling import cfg
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from model import OnGEBDModel
-
 
 def smooth_labels(labels, sigma=1.0):
     """
@@ -130,9 +136,44 @@ def evaluate_boundaries(model, dataloader, device, prob_threshold=0.5, tolerance
     return precision, recall, f1
 
 if __name__ == "__main__":
-    # Example initialization
+    parser = argparse.ArgumentParser(description="Train OnGEBD Model")
+    parser.add_argument("--epochs", type=int, default=20, help="Number of training epochs")
+    parser.add_argument("--batch-size", type=int, default=2, help="Batch size")
+    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate")
+    args = parser.parse_args()
+
+    # Create dummy args for EfficientGEBD's build_dataloader
+    class DummyArgs:
+        distributed = False
+    dummy_args = DummyArgs()
+
+    # Configure cfg for SEWING dataset
+    cfg.merge_from_list([
+        "DATASETS.TRAIN", ["SEWING_train"],
+        "DATASETS.TEST", ["SEWING_val"],
+        "SOLVER.BATCH_SIZE", args.batch_size,
+        "INPUT.END_TO_END", True, # This forces the dataloader to return (B, T, C, H, W) instead of flattening
+        "SOLVER.NUM_WORKERS", 4
+    ])
+
+    print("Building DataLoaders from EfficientGEBD...")
+    train_dataloader = build_dataloader(cfg, dummy_args, cfg.DATASETS.TRAIN, is_train=True)
+    val_dataloader = build_dataloader(cfg, dummy_args, cfg.DATASETS.TEST, is_train=False)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = OnGEBDModel(feature_dim=2048, hidden_dim=512).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+
+    print(f"Starting OnGEBD Training for {args.epochs} epochs on device: {device}")
     
-    print("OnGEBD Model initialized successfully. Ready for training with streaming causal data.")
+    best_f1 = 0.0
+    for epoch in range(args.epochs):
+        print(f"\n--- Epoch {epoch+1}/{args.epochs} ---")
+        train_one_epoch(model, train_dataloader, optimizer, device)
+        
+        precision, recall, f1 = evaluate_boundaries(model, val_dataloader, device)
+        
+        if f1 > best_f1:
+            best_f1 = f1
+            print(f"New best F1! Saving checkpoint...")
+            torch.save(model.state_dict(), "ongebd_best.pth")
