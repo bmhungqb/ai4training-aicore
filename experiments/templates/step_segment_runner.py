@@ -66,6 +66,12 @@ def parse_args():
         action="store_true",
         help="Validate config, datasets, and preview commands without running heavy compute",
     )
+    parser.add_argument(
+        "--dry-run-iters",
+        type=int,
+        default=2,
+        help="Number of iterations to probe data loading and train loop during dry-run (default: 2, set 0 to skip probe)",
+    )
     return parser.parse_args()
 
 
@@ -254,7 +260,102 @@ def update_overview_tracker(config: dict, output_dir: Path, metrics_data: dict):
         logger.warning(f"Failed to write to overview tracker: {e}")
 
 
-def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env: dict):
+def probe_dataset_and_training(model_type: str, config: dict, dry_run_iters: int, mode: str):
+    if dry_run_iters <= 0:
+        return
+
+    print("\n [2/4] Data Loading & Training Probe:")
+    if model_type in ["efficient_gebd", "efficientgebd"]:
+        eff_dir = REPO_ROOT / "src" / "step_segment" / "EfficientGEBD"
+        dataset_dir = REPO_ROOT / "data" / "efficient_gebd_dataset"
+        val_pkl = dataset_dir / "val_annotation.pkl"
+        if not (dataset_dir.exists() and val_pkl.exists()):
+            print("   ✗ EfficientGEBD dataset missing, skipping data/training probe.")
+            return
+
+        try:
+            import torch
+            if str(eff_dir) not in sys.path:
+                sys.path.insert(0, str(eff_dir))
+
+            from modeling.config import _C as eff_cfg_base
+            from modeling import build_model
+            from datasets import build_dataloader
+            from train import make_inputs, make_targets
+            from solver import build_optimizer
+
+            config_file = config.get("efficientgebd_config_file") or (eff_dir / "config-files" / "sewing_resnet50.yaml")
+            eff_cfg = eff_cfg_base.clone()
+            eff_cfg.merge_from_file(str(config_file))
+            eff_cfg.SOLVER.BATCH_SIZE = min(eff_cfg.SOLVER.BATCH_SIZE, 2)
+            eff_cfg.SOLVER.NUM_WORKERS = 0
+            eff_cfg.freeze()
+
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            dummy_args = argparse.Namespace(distributed=False, num_gpus=1, local_rank=0)
+
+            split = 'SEWING_train' if mode == 'train' else 'SEWING_val'
+            print(f"   → Initializing DataLoader for split '{split}' (device: {device})...")
+            loader = build_dataloader(eff_cfg, dummy_args, [split], is_train=(mode == 'train'))
+            print(f"   ✓ DataLoader initialized: {len(loader.dataset)} samples ({len(loader)} batches)")
+
+            data_iter = iter(loader)
+            batch = next(data_iter)
+            samples = make_inputs(batch, device)
+            targets = make_targets(eff_cfg, batch, device)
+
+            print(f"   ✓ Data Probe: Successfully loaded 1 batch from disk:")
+            print(f"     • Batch imgs shape:   {list(samples['imgs'].shape)} (B, T, C, H, W)")
+            print(f"     • Batch labels shape: {list(targets.shape)} (B, T)")
+
+            print(f"   → Instantiating model {eff_cfg.MODEL.NAME} ({eff_cfg.MODEL.BACKBONE.NAME})...")
+            model = build_model(eff_cfg).to(device)
+
+            if mode == 'train':
+                model.train()
+                optimizer = build_optimizer(eff_cfg, [p for p in model.parameters() if p.requires_grad])
+
+                for step in range(1, dry_run_iters + 1):
+                    if step > 1:
+                        batch = next(data_iter)
+                        samples = make_inputs(batch, device)
+                        targets = make_targets(eff_cfg, batch, device)
+
+                    optimizer.zero_grad()
+                    losses = model(samples, targets)
+                    total_loss = sum([w * l for w, l in zip(eff_cfg.MODEL.LOSS_WEIGHT, losses)])
+                    total_loss.backward()
+                    optimizer.step()
+                    print(f"   ✓ Training Probe [Iter {step}/{dry_run_iters}]: Forward + Loss ({total_loss.item():.4f}) + Backward + Optimizer step PASSED")
+            else:
+                model.eval()
+                with torch.no_grad():
+                    outputs = model(samples)
+                    print(f"   ✓ Inference Probe: Forward pass PASSED (output shape: {list(outputs.shape)})")
+
+            print(f"   ✓ Probe verified successfully! Pipeline is ready.")
+
+        except Exception as e:
+            print(f"   ✗ Probe encountered an error: {e}")
+            import traceback
+            traceback.print_exc()
+
+    elif model_type in ["diff_gebd", "diffgebd"]:
+        dataset_dir = REPO_ROOT / "data" / "diff_gebd_dataset"
+        chunk_train = dataset_dir / "chunked_train_annotation.json"
+        if not (dataset_dir.exists() and chunk_train.exists()):
+            print("   ✗ DiffGEBD dataset missing, skipping data/training probe.")
+            return
+
+    elif model_type in ["ddm_net", "ddm"]:
+        dataset_dir = REPO_ROOT / "data" / "ddm_dataset"
+        train_split = dataset_dir / "train_split.json"
+        if not (dataset_dir.exists() and train_split.exists()):
+            print("   ✗ DDM-Net dataset missing, skipping data/training probe.")
+            return
+
+
+def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env: dict, dry_run_iters: int = 2):
     exp_id = config.get("experiment_id", "exp_unnamed")
     model_type = config.get("model_type", "efficient_gebd").lower()
     iter_id = config.get("iteration_id", "iter_01")
@@ -273,7 +374,7 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
     print("-" * 70)
 
     # 1. Dataset verification
-    print(" [1/3] Dataset Verification:")
+    print(" [1/4] Dataset Verification:")
     if model_type in ["ddm_net", "ddm"]:
         dataset_dir = REPO_ROOT / "data" / "ddm_dataset"
         train_split = dataset_dir / "train_split.json"
@@ -305,8 +406,11 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
             print(f"   ✗ EfficientGEBD dataset missing at {dataset_dir}")
             print(f"     Run: python tools/prepare_efficient_gebd_dataset.py")
 
-    # 2. Command Preview
-    print("\n [2/3] Command Preview:")
+    # 2. Data Loading & Training Probe
+    probe_dataset_and_training(model_type, config, dry_run_iters, mode)
+
+    # 3. Command Preview
+    print("\n [3/4] Command Preview:")
     if model_type in ["ddm_net", "ddm"]:
         ddm_dir = REPO_ROOT / "src" / "step_segment" / "DDM-Net"
         if mode == "train":
@@ -385,8 +489,8 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
             ]
             print(f"   Execution Command: {' '.join(cmd)}")
 
-    # 3. Expected Artifacts
-    print("\n [3/3] Expected Artifacts upon Completion:")
+    # 4. Expected Artifacts
+    print("\n [4/4] Expected Artifacts upon Completion:")
     print(f"   • {output_dir / 'run.log'}")
     print(f"   • {output_dir / 'train.log'}")
     print(f"   • {output_dir / ('best_model.ckpt' if model_type in ['ddm_net', 'ddm'] else 'model_best.pth')}")
@@ -395,7 +499,7 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
     print(f"   • Auto-updates: experiments/step_segment/step_segment_overview.md")
 
     print("\n" + "=" * 70)
-    print(" [DRY-RUN] Pre-flight verification completed. No training was executed.")
+    print(" [DRY-RUN] Pre-flight verification & probe completed.")
     print(" Remove --dry-run flag to start full training run.")
     print("=" * 70 + "\n")
 
@@ -415,7 +519,7 @@ def main():
     env["PYTHONPATH"] = f"{REPO_ROOT}:{env.get('PYTHONPATH', '')}"
 
     if args.dry_run:
-        dry_run_check(config, output_dir, args.mode, args.num_gpus, env)
+        dry_run_check(config, output_dir, args.mode, args.num_gpus, env, dry_run_iters=args.dry_run_iters)
         return
 
     output_dir.mkdir(parents=True, exist_ok=True)
