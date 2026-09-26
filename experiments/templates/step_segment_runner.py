@@ -95,7 +95,7 @@ def run_ddm_net(config: dict, output_dir: Path, mode: str, num_gpus: int, env: d
         if "learning_rate" in train_cfg:
             cmd.extend(["--learning-rate", str(train_cfg["learning_rate"])])
         if "aux_loss_weight" in train_cfg:
-            cmd.extend(["--aux-loss-weight", str(train_cfg["aux_loss_weight"])])
+            cmd.append(f"training_config.aux_loss_weight={train_cfg['aux_loss_weight']}")
 
         logger.info(f"Executing DDM-Net Training: {' '.join(cmd)}")
         subprocess.run(cmd, cwd=str(ddm_dir), env=env, check=True)
@@ -447,7 +447,7 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
             if "learning_rate" in train_cfg:
                 cmd.extend(["--learning-rate", str(train_cfg["learning_rate"])])
             if "aux_loss_weight" in train_cfg:
-                cmd.extend(["--aux-loss-weight", str(train_cfg["aux_loss_weight"])])
+                cmd.append(f"training_config.aux_loss_weight={train_cfg['aux_loss_weight']}")
             print(f"   Working Directory: {ddm_dir}")
             print(f"   Execution Command: {' '.join(cmd)}")
         elif mode == "infer":
