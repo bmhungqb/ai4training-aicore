@@ -38,7 +38,7 @@ INPUT:
   SEQUENCE_LENGTH: 150
 MODEL:
   BACKBONE:
-    FREEZE: true
+    FREEZE: false
     NAME: resnet50
   CLASS_DIM: 1
   DECODER: transformer
