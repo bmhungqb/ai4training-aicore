@@ -10,7 +10,7 @@ model_params:
   sequence_length: 100
 
 training_params:
-  epochs: 50
+  epochs: 30
   learning_rate: 0.0001
   batch_size: 2
 

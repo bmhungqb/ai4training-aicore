@@ -137,6 +137,7 @@ def run_diff_gebd(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
     diff_dir = REPO_ROOT / "src" / "step_segment" / "DiffGEBD"
     ensure_data_symlink(diff_dir)
     config_file = resolve_config_file(config, "diffgebd_config_file", diff_dir / "config" / "sewing_diffgebd_resnet50_chunked.yaml")
+    train_cfg = config.get("training_params", {})
 
     if mode == "train":
         cmd = [
@@ -145,6 +146,11 @@ def run_diff_gebd(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
             "--config-file", str(config_file),
             "OUTPUT_DIR", str(output_dir),
         ]
+        if "epochs" in train_cfg:
+            cmd.extend(["SOLVER.MAX_EPOCHS", str(train_cfg["epochs"])])
+        if "learning_rate" in train_cfg:
+            cmd.extend(["SOLVER.LR", str(train_cfg["learning_rate"])])
+
         logger.info(f"Executing DiffGEBD Training: {' '.join(cmd)}")
         subprocess.run(cmd, cwd=str(diff_dir), env=env, check=True)
 
@@ -180,6 +186,7 @@ def run_efficient_gebd(config: dict, output_dir: Path, mode: str, num_gpus: int,
     eff_dir = REPO_ROOT / "src" / "step_segment" / "EfficientGEBD"
     ensure_data_symlink(eff_dir)
     config_file = resolve_config_file(config, "efficientgebd_config_file", eff_dir / "config-files" / "sewing_resnet50.yaml")
+    train_cfg = config.get("training_params", {})
 
     if mode == "train":
         cmd = [
@@ -188,6 +195,13 @@ def run_efficient_gebd(config: dict, output_dir: Path, mode: str, num_gpus: int,
             "--config-file", str(config_file),
             "OUTPUT_DIR", str(output_dir),
         ]
+        if "epochs" in train_cfg:
+            cmd.extend(["SOLVER.MAX_EPOCHS", str(train_cfg["epochs"])])
+        if "learning_rate" in train_cfg:
+            cmd.extend(["SOLVER.LR", str(train_cfg["learning_rate"])])
+        if "batch_size" in train_cfg:
+            cmd.extend(["SOLVER.BATCH_SIZE", str(train_cfg["batch_size"])])
+
         logger.info(f"Executing EfficientGEBD Training: {' '.join(cmd)}")
         subprocess.run(cmd, cwd=str(eff_dir), env=env, check=True)
 
@@ -475,6 +489,10 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
                 "--config-file", str(config_file),
                 "OUTPUT_DIR", str(output_dir),
             ]
+            if "epochs" in train_cfg:
+                cmd.extend(["SOLVER.MAX_EPOCHS", str(train_cfg["epochs"])])
+            if "learning_rate" in train_cfg:
+                cmd.extend(["SOLVER.LR", str(train_cfg["learning_rate"])])
             print(f"   Working Directory: {diff_dir}")
             print(f"   Execution Command: {' '.join(cmd)}")
         elif mode == "infer":
@@ -499,6 +517,12 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
                 "--config-file", str(config_file),
                 "OUTPUT_DIR", str(output_dir),
             ]
+            if "epochs" in train_cfg:
+                cmd.extend(["SOLVER.MAX_EPOCHS", str(train_cfg["epochs"])])
+            if "learning_rate" in train_cfg:
+                cmd.extend(["SOLVER.LR", str(train_cfg["learning_rate"])])
+            if "batch_size" in train_cfg:
+                cmd.extend(["SOLVER.BATCH_SIZE", str(train_cfg["batch_size"])])
             print(f"   Working Directory: {eff_dir}")
             print(f"   Execution Command: {' '.join(cmd)}")
         elif mode == "infer":
