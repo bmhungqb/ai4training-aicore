@@ -85,6 +85,7 @@ _C.TEST.THRESHOLD = 0.5
 _C.TEST.PRED_FILE = ''  # precomputed predictions
 _C.TEST.SMOKE_TEST = False
 _C.TEST.PROTOCOL = 'max'
+_C.TEST.RELDIS_THRESHOLD = 0.05
 # ---------------------------------------------------------------------------- #
 # OTHERS
 # ---------------------------------------------------------------------------- #
