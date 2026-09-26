@@ -63,3 +63,18 @@ Proposed experiments to run concurrently or sequentially in this iteration:
 ## 4. Resource & Feasibility Estimation
 - Estimated compute time per experiment: ~{{TIME_MINUTES}} mins.
 - GPU / RAM requirements: {{HARDWARE_REQUIREMENTS}}.
+
+---
+
+## 5. Rebuttal & Plan Revision History (Debate Feedback Loop)
+
+*Use this section when revising the plan based on critiques from `@research-debater` or Human feedback.*
+
+### Revision Round: `{{REVISION_ROUND_ID}}` (e.g. Rev 2)
+- **Critique Addressed**: {{SUMMARY_OF_DEBATE_CHALLENGE}}
+- **Planner Defense / Concession**:
+  - *Defense*: {{THEORETICAL_OR_EMPIRICAL_JUSTIFICATION_IF_DEFENDING}}
+  - *Concession / Fix*: {{WHAT_WAS_CHANGED_IN_RESPONSE}}
+- **Modified Experiments**:
+  - Updated `{{MODIFIED_EXP_ID}}`: {{DESCRIPTION_OF_DELTA}}
+

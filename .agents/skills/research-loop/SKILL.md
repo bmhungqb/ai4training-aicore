@@ -57,10 +57,12 @@ When the user asks to start a new iteration or process an existing run:
 3. **Step 3: Planning**
    - Invoke `research-planner` to investigate prior art and draft `03_research_plan.md`.
 
-4. **Step 4: Debate & Human Gate (STOP POINT 1)**
+4. **Step 4: Debate & Human Gate (STOP POINT 1 - Multi-Turn Feedback Loop)**
    - Invoke `research-debater` to present critical challenges.
-   - Stop and interview the Human researcher. Incorporate feedback into `04_debate_verdict.md`.
-   - **Do NOT proceed until Human explicitly confirms approval.**
+   - Stop and interview the Human researcher.
+   - **Feedback Sub-loop**: If critiques reveal flaws or Human requests adjustments, call `@research-planner` in Revision Mode to update `03_research_plan.md` (Revision 2, 3...) until aligned.
+   - Once approved by Human: Record verdict in `04_debate_verdict.md` with status `APPROVED FOR IMPLEMENTATION`.
+   - **Do NOT proceed to Step 5 until Human explicitly confirms approval.**
 
 5. **Step 5: Implementation**
    - Invoke `research-implementor` to scaffold `exp_001/`, `exp_002/`, `run_all.sh`.

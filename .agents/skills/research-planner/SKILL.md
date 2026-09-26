@@ -38,8 +38,19 @@ The **Researcher / Planner Agent** turns diagnostic hypotheses into actionable r
 
 ## Execution Workflow
 
+### Mode A: Initial Plan Formulation (Round 1)
 1. Read `02_diagnosis.md` and select the highest-confidence hypotheses to target.
 2. Search relevant literature or existing code in the repository (`tools/`, `docs/`).
 3. Fill in `03_research_plan.md` using `experiments/templates/03_research_plan_template.md`.
 4. Outline 2–3 concrete experiment candidates with isolated changes and baseline comparisons.
 5. Prompt the user: "Research plan prepared. Proceed to run `@research-debater` to critically challenge the plan and debate with Human."
+
+### Mode B: Rebuttal & Plan Revision (Returning from Debate)
+*Activated when `@research-debater` raises objections or Human requests adjustments.*
+1. **Analyze Critiques**: Read the critique points recorded in `04_debate_verdict.md` (or chat feedback from Debater and Human).
+2. **Formulate Response**:
+   - For valid criticisms: Concede and adjust experiment design (change hyperparameters, swap models, or add required ablation baselines).
+   - For challenged assumptions that are defensible: Provide technical justification or cite literature evidence in defense.
+3. **Update Plan**: Append to `## 5. Rebuttal & Plan Revision History` in `03_research_plan.md` and update candidate experiment specifications.
+4. **Handoff**: Conclude with: "Planner has revised the proposal to Revision 2. Handing back to `@research-debater` and Human for next review round."
+

@@ -45,6 +45,13 @@ The **Debate Agent** serves as the adversarial quality gatekeeper. Its role is t
 3. Present the challenges to the Human researcher:
    - Identify weak assumptions.
    - Suggest alternative explanations or simpler controls.
-4. Integrate Human answers and modifications.
-5. Once Human confirms approval, write `04_debate_verdict.md` using `experiments/templates/04_debate_verdict_template.md`.
-6. Prompt the user: "Plan approved. Proceed to run `@research-implementor` to generate reproducible code and config files."
+4. Integrate Human answers and modifications:
+   - **Branch A: Plan Needs Revision**:
+     If critiques uncover major flaws or Human requests significant changes:
+     - Document the critique points in `04_debate_verdict.md` under Section 1 & 2 with status `STATUS: REVISE_REQUIRED`.
+     - Guide the user: *"Kế hoạch cần điều chỉnh. Bạn hãy gọi `@research-planner` (ví dụ: 'Planner hãy phản hồi và cập nhật plan theo ý kiến trên') để Planner giải trình và cập nhật Revision tiếp theo."*
+   - **Branch B: Plan Approved**:
+     Once Human confirms final agreement:
+     - Write `04_debate_verdict.md` with `STATUS: APPROVED FOR IMPLEMENTATION`.
+     - Prompt the user: *"Plan đã được duyệt chính thức. Tiến hành gọi `@research-implementor` để sinh mã nguồn và config thực thi."*
+
