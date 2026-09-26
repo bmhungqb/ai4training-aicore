@@ -1,4 +1,4 @@
-experiment_id: exp_001_efficientgebd_baseline
+experiment_id: exp_001_baseline
 track: step_segment
 iteration_id: iter_01
 model_type: efficient_gebd

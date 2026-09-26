@@ -11,7 +11,7 @@
 | Rank | Model Architecture | Experiment ID | Backbone | Macro F1 (0.5s) | Recall (0.5s) | Precision (0.5s) | F1 @ 0.25s | F1 @ 1.0s | Status |
 | :---: | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | - | **EfficientGEBD** | [`exp_001_baseline`](efficient_gebd/iter_01/exp_001_baseline/) | ResNet-50 | - | - | - | - | - | Ready to benchmark |
-| - | **DiffGEBD** | [`exp_001_chunked`](diff_gebd/iter_01/exp_001_chunked/) | ResNet-50 | - | - | - | - | - | Chunked dataset ready |
+| - | **DiffGEBD** | [`exp_001_baseline`](diff_gebd/iter_01/exp_001_baseline/) | ResNet-50 | - | - | - | - | - | Chunked baseline ready |
 | - | **DDM-Net** | [`exp_001_baseline`](ddm_net/iter_01/exp_001_baseline/) | ResNet-50 | - | - | - | - | - | Aux re-weighted ready |
 
 *Target Criteria for Champion Model*: Macro F1 $\ge 65.0\%$ at $\pm 0.5$s, Inference speed $\ge 25$ fps, VRAM $\le 8$GB.
@@ -25,7 +25,7 @@
 | Timestamp | Model | Experiment ID | Path / Config | Key Tested Variable | Macro F1 (0.5s) | Recall | Precision | Verdict / Notes |
 | :--- | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :--- |
 | Planned | `EfficientGEBD` | `exp_001_baseline` | [config.yaml](efficient_gebd/iter_01/exp_001_baseline/config.yaml) | 10s slice sampling + `POS_WEIGHT: 4.5` | - | - | - | Pending Human execution |
-| Planned | `DiffGEBD` | `exp_001_chunked` | [config.yaml](diff_gebd/iter_01/exp_001_chunked/config.yaml) | 12s overlapping chunks + CFG 7.0 | - | - | - | Pending Human execution |
+| Planned | `DiffGEBD` | `exp_001_baseline` | [config.yaml](diff_gebd/iter_01/exp_001_baseline/config.yaml) | 12s overlapping chunks + CFG 7.0 | - | - | - | Pending Human execution |
 | Planned | `DDM-Net` | `exp_001_baseline` | [config.yaml](ddm_net/iter_01/exp_001_baseline/config.yaml) | Weighted aux heads (`main + 0.3*aux`) | - | - | - | Pending Human execution |
 
 ---
@@ -43,7 +43,7 @@ Each model maintains its own isolated experiment hierarchy, configs, and output 
 ### 3.2. DiffGEBD Track ([`experiments/step_segment/diff_gebd/`](diff_gebd/))
 - **Paradigm**: Denoising diffusion generative model (DDPM/DDIM) conditioned on visual similarity + CFG.
 - **Reference Doc**: [`docs/step_segment/diff_gebd.md`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/docs/step_segment/diff_gebd.md)
-- **Active Iteration**: [`iter_01`](diff_gebd/iter_01/exp_001_chunked/)
+- **Active Iteration**: [`iter_01`](diff_gebd/iter_01/exp_001_baseline/)
 - **Outputs**: `outputs/step_segment/diff_gebd/iter_XX/exp_YY/`
 
 ### 3.3. EfficientGEBD Track ([`experiments/step_segment/efficient_gebd/`](efficient_gebd/))
