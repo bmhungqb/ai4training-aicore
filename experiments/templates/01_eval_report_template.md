@@ -7,42 +7,60 @@
 
 ---
 
-## 1. Executive Fact Sheet (Metrics Only)
+## 1. Executive Performance Fact Sheet
 
-| Metric | Target / Baseline | Observed Value | Delta | Status |
+| Tolerance Window | Macro F1 | Recall | Precision | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Primary Metric (e.g. Macro Recall)** | {{BASELINE_VAL}}% | **{{OBSERVED_VAL}}%** | {{DELTA}}% | {{STATUS_ICON}} |
-| **Secondary Metric (e.g. Macro F1)** | {{BASELINE_VAL}}% | **{{OBSERVED_VAL}}%** | {{DELTA}}% | {{STATUS_ICON}} |
-| **Micro Metric** | {{BASELINE_VAL}}% | **{{OBSERVED_VAL}}%** | {{DELTA}}% | {{STATUS_ICON}} |
+| **+/- 0.25s** | **{{F1_025}}%** | {{REC_025}}% | {{PREC_025}}% | {{ICON_025}} |
+| **+/- 0.50s (Primary)** | **{{F1_050}}%** | {{REC_050}}% | {{PREC_050}}% | {{ICON_050}} |
+| **+/- 1.00s** | **{{F1_100}}%** | {{REC_100}}% | {{PREC_100}}% | {{ICON_100}} |
 
 ---
 
-## 2. Where Does The Model Fail? (Per-Category / Per-Class Breakdown)
+## 2. Training Log Health & Dynamics Analysis
 
-| Category / Operation ID | Name | Sample Count | Metric Observed | Comparison vs Average |
-| :--- | :--- | :--- | :--- | :--- |
-| `case_01` | {{NAME_1}} | {{COUNT_1}} | {{METRIC_1}} | {{DIFF_1}} |
-| `case_02` | {{NAME_2}} | {{COUNT_2}} | {{METRIC_2}} | {{DIFF_2}} |
+- **Recorded Epochs**: {{RECORDED_EPOCHS}}
+- **Loss Trajectory**: Initial `{{INIT_LOSS}}` -> Final `{{FINAL_LOSS}}` (Minimum: `{{MIN_LOSS}}`)
+- **Peak Validation F1**: `{{PEAK_F1}}%`
 
----
-
-## 3. How Does The Model Fail? (Error Categorization)
-
-### False Positives (Over-segmentation / Spurious Triggers)
-- **Count**: {{FP_COUNT}}
-- **Typical occurrence pattern**: {{FP_DESCRIPTION_FACTUAL_ONLY}}
-- **Evidence**: `{{FP_SAMPLE_PATH_OR_LOG_LINE}}`
-
-### False Negatives (Missed Boundaries / Actions)
-- **Count**: {{FN_COUNT}}
-- **Typical occurrence pattern**: {{FN_DESCRIPTION_FACTUAL_ONLY}}
-- **Evidence**: `{{FN_SAMPLE_PATH_OR_LOG_LINE}}`
+### Detected Training Pathologies & Anomalies:
+- {{ANOMALY_1}}
+- {{ANOMALY_2}}
 
 ---
 
-## 4. What Does The Model Do Correctly?
-- {{FACT_SUCCESS_1}}: supported by logs `{{LOG_REF_1}}`.
-- {{FACT_SUCCESS_2}}: supported by metrics `{{METRIC_REF_2}}`.
+## 3. Top Severe Error Cases (Visual Evidence)
+
+Prioritizing the top 3-4 most severe failure modes with extracted video frames:
+
+### Case 1: `{{CASE_ID_1}}` ({{CATEGORY_BADGE_1}})
+- **Video ID**: `{{VIDEO_ID_1}}` | **Timestamp**: `{{TIMESTAMP_1}}s`
+- **Discrepancy**: {{DISCREPANCY_1}}
+- **Factual Observation**: {{OBSERVATION_1}}
+- **Visual Frame Strip**: [View Strip Image](file://{{STRIP_PATH_1}})
+  ![Visual Frame Strip]({{STRIP_PATH_1}})
+
+### Case 2: `{{CASE_ID_2}}` ({{CATEGORY_BADGE_2}})
+- **Video ID**: `{{VIDEO_ID_2}}` | **Timestamp**: `{{TIMESTAMP_2}}s`
+- **Discrepancy**: {{DISCREPANCY_2}}
+- **Factual Observation**: {{OBSERVATION_2}}
+- **Visual Frame Strip**: [View Strip Image](file://{{STRIP_PATH_2}})
+  ![Visual Frame Strip]({{STRIP_PATH_2}})
+
+---
+
+## 4. Per-Video Breakdown Ranking (Worst to Best)
+
+| Rank | Video ID | F1 @ 0.5s | Recall | Precision | GT Count | Pred Count |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| 1 | `{{WORST_VID_1}}` | **{{WORST_F1_1}}%** | {{WORST_REC_1}}% | {{WORST_PREC_1}}% | {{GT_1}} | {{PRED_1}} |
+| 2 | `{{WORST_VID_2}}` | **{{WORST_F1_2}}%** | {{WORST_REC_2}}% | {{WORST_PREC_2}}% | {{GT_2}} | {{PRED_2}} |
+
+---
+
+## 5. What Does The Model Do Correctly?
+- {{FACT_SUCCESS_1}}
+- {{FACT_SUCCESS_2}}
 
 ---
 
