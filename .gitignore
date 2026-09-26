@@ -15,6 +15,7 @@ data_old/
 data_sp1/
 data_result/
 ddm_dataset/
+src/step_segment/*/data
 outputs/
 runs/
 *.ckpt

@@ -112,9 +112,28 @@ def run_ddm_net(config: dict, output_dir: Path, mode: str, num_gpus: int, env: d
         subprocess.run(cmd, cwd=str(REPO_ROOT), env=env, check=True)
 
 
+def resolve_config_file(config: dict, key: str, default_path: Path) -> Path:
+    raw = config.get(key)
+    if raw:
+        p = Path(raw)
+        return (REPO_ROOT / p).resolve() if not p.is_absolute() else p.resolve()
+    return default_path.resolve()
+
+
+def ensure_data_symlink(model_dir: Path):
+    data_link = model_dir / "data"
+    target = REPO_ROOT / "data"
+    if not data_link.exists() and target.exists():
+        try:
+            data_link.symlink_to(Path("../../../data"))
+        except OSError:
+            pass
+
+
 def run_diff_gebd(config: dict, output_dir: Path, mode: str, num_gpus: int, env: dict):
     diff_dir = REPO_ROOT / "src" / "step_segment" / "DiffGEBD"
-    config_file = config.get("diffgebd_config_file") or (diff_dir / "config" / "sewing_diffgebd_resnet50_chunked.yaml")
+    ensure_data_symlink(diff_dir)
+    config_file = resolve_config_file(config, "diffgebd_config_file", diff_dir / "config" / "sewing_diffgebd_resnet50_chunked.yaml")
 
     if mode == "train":
         cmd = [
@@ -156,7 +175,8 @@ def run_diff_gebd(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
 
 def run_efficient_gebd(config: dict, output_dir: Path, mode: str, num_gpus: int, env: dict):
     eff_dir = REPO_ROOT / "src" / "step_segment" / "EfficientGEBD"
-    config_file = config.get("efficientgebd_config_file") or (eff_dir / "config-files" / "sewing_resnet50.yaml")
+    ensure_data_symlink(eff_dir)
+    config_file = resolve_config_file(config, "efficientgebd_config_file", eff_dir / "config-files" / "sewing_resnet50.yaml")
 
     if mode == "train":
         cmd = [
@@ -284,7 +304,7 @@ def probe_dataset_and_training(model_type: str, config: dict, dry_run_iters: int
             from train import make_inputs, make_targets
             from solver import build_optimizer
 
-            config_file = config.get("efficientgebd_config_file") or (eff_dir / "config-files" / "sewing_resnet50.yaml")
+            config_file = resolve_config_file(config, "efficientgebd_config_file", eff_dir / "config-files" / "sewing_resnet50.yaml")
             eff_cfg = eff_cfg_base.clone()
             eff_cfg.merge_from_file(str(config_file))
             eff_cfg.SOLVER.BATCH_SIZE = min(eff_cfg.SOLVER.BATCH_SIZE, 2)
@@ -442,7 +462,7 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
 
     elif model_type in ["diff_gebd", "diffgebd"]:
         diff_dir = REPO_ROOT / "src" / "step_segment" / "DiffGEBD"
-        config_file = config.get("diffgebd_config_file") or (diff_dir / "config" / "sewing_diffgebd_resnet50_chunked.yaml")
+        config_file = resolve_config_file(config, "diffgebd_config_file", diff_dir / "config" / "sewing_diffgebd_resnet50_chunked.yaml")
         if mode == "train":
             cmd = [
                 "torchrun", f"--nproc_per_node={num_gpus}",
@@ -466,7 +486,7 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
 
     elif model_type in ["efficient_gebd", "efficientgebd"]:
         eff_dir = REPO_ROOT / "src" / "step_segment" / "EfficientGEBD"
-        config_file = config.get("efficientgebd_config_file") or (eff_dir / "config-files" / "sewing_resnet50.yaml")
+        config_file = resolve_config_file(config, "efficientgebd_config_file", eff_dir / "config-files" / "sewing_resnet50.yaml")
         if mode == "train":
             cmd = [
                 "torchrun", f"--nproc_per_node={num_gpus}",
@@ -517,6 +537,7 @@ def main():
     output_dir = args.output_dir or (REPO_ROOT / "outputs" / track / model_type / iter_id / exp_id)
     env = os.environ.copy()
     env["PYTHONPATH"] = f"{REPO_ROOT}:{env.get('PYTHONPATH', '')}"
+    env["SEWING_ROOT"] = str((REPO_ROOT / "data" / "efficient_gebd_dataset" / "images").resolve())
 
     if args.dry_run:
         dry_run_check(config, output_dir, args.mode, args.num_gpus, env, dry_run_iters=args.dry_run_iters)

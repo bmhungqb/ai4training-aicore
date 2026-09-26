@@ -19,6 +19,15 @@ from torchvision.io.image import ImageReadMode
 from utils.distribute import synchronize, is_main_process
 
 
+def resolve_path(path: str) -> str:
+    if os.path.exists(path):
+        return path
+    up_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..', path))
+    if os.path.exists(up_path):
+        return up_path
+    return path
+
+
 def image_loader(path):
     # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
     with open(path, 'rb') as f:
@@ -47,14 +56,14 @@ def prepare_gebd_annotations(cfg, root, name, split):
     num_annotators = cfg.INPUT.ANNOTATORS if (name == 'GEBD' and 'train' in split) else 1
 
     if name == 'GEBD':
-        ann_path = os.path.join('data/Kinetics-GEBD', f'k400_mr345_{split}_min_change_duration0.3.pkl')
+        ann_path = resolve_path(os.path.join('data', 'Kinetics-GEBD', f'k400_mr345_{split}_min_change_duration0.3.pkl'))
     elif name == 'TAPOS':
-        ann_path = os.path.join('data/TAPOS', f'tapos_gt_{split}.pkl')
+        ann_path = resolve_path(os.path.join('data', 'TAPOS', f'tapos_gt_{split}.pkl'))
     elif name == 'SEWING':
         # Industrial sewing step-segmentation dataset, built by
         # tools/prepare_efficient_gebd_dataset.py. Annotation format follows the
         # same Kinetics-GEBD schema (fps, path_frame, substages_myframeidx, ...).
-        ann_path = os.path.join('data/efficient_gebd_dataset', f'{split}_annotation.pkl')
+        ann_path = resolve_path(os.path.join('data', 'efficient_gebd_dataset', f'{split}_annotation.pkl'))
     else:
         raise NotImplemented
 
@@ -69,7 +78,7 @@ def prepare_gebd_annotations(cfg, root, name, split):
     if num_annotators > 1:
         filename = 'top{}_'.format(num_annotators) + filename
 
-    cache_path = os.path.join('data', 'caches', filename)
+    cache_path = resolve_path(os.path.join('data', 'caches', filename))
     # if 'val' in split:
     #     print(split)
     #     print('cache_path:',cache_path)

@@ -26,6 +26,15 @@ import torch.backends.cudnn as cudnn
 import random, shutil
 
 
+def resolve_path(path: str) -> str:
+    if os.path.exists(path):
+        return path
+    up_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..', path))
+    if os.path.exists(up_path):
+        return up_path
+    return path
+
+
 def make_inputs(inputs, device):
     keys = ['imgs', 'video_path', 'frame_masks']
     results = {}
@@ -411,11 +420,11 @@ def validate_end_to_end(cfg, args, model, device, data_loader, epoch):
         print(f'Saved results to {save_path}.')
     
     if data_loader.dataset.name == 'GEBD':
-        gt_path = os.path.join('data/Kinetics-GEBD', f'k400_mr345_{data_loader.dataset.split}_min_change_duration0.3.pkl')
+        gt_path = resolve_path(os.path.join('data', 'Kinetics-GEBD', f'k400_mr345_{data_loader.dataset.split}_min_change_duration0.3.pkl'))
     elif data_loader.dataset.name == 'TAPOS':
-        gt_path = os.path.join('data/TAPOS', f'tapos_gt_{data_loader.dataset.split}.pkl')
+        gt_path = resolve_path(os.path.join('data', 'TAPOS', f'tapos_gt_{data_loader.dataset.split}.pkl'))
     elif data_loader.dataset.name == 'SEWING':
-        gt_path = os.path.join('data/efficient_gebd_dataset', f'{data_loader.dataset.split}_annotation.pkl')
+        gt_path = resolve_path(os.path.join('data', 'efficient_gebd_dataset', f'{data_loader.dataset.split}_annotation.pkl'))
     else:
         raise NotImplemented
 
