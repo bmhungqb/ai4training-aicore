@@ -160,6 +160,15 @@ def train_one_epoch(cfg, args, model, device, optimizer, data_loader, summary_wr
 
         # ------------ training operations ----------
         optimizer.zero_grad()
+        if not torch.isfinite(total_loss):
+            # A single NaN/Inf loss (e.g. a degenerate batch) would otherwise poison
+            # every parameter permanently: clip_grad_norm_ computes one global norm
+            # across all params, so one NaN gradient makes the clip factor NaN, which
+            # then NaNs out every weight on optimizer.step() -- with no recovery for
+            # the rest of training. Skip this batch instead.
+            if is_main_process():
+                print('Skipping batch {}: non-finite loss ({})'.format(i, total_loss.item()), flush=True)
+            continue
         if cfg.SOLVER.AMPE:
             loss_scaler.scale(total_loss).backward()
 
@@ -169,13 +178,24 @@ def train_one_epoch(cfg, args, model, device, optimizer, data_loader, summary_wr
             #         print(name)
 
             if cfg.SOLVER.CLIP_GRAD > 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.CLIP_GRAD)
+                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.CLIP_GRAD)
+                if not torch.isfinite(grad_norm):
+                    if is_main_process():
+                        print('Skipping batch {}: non-finite grad norm ({})'.format(i, grad_norm.item()), flush=True)
+                    optimizer.zero_grad()
+                    loss_scaler.update()
+                    continue
             loss_scaler.step(optimizer)
             loss_scaler.update()
         else:
             total_loss.backward()
             if cfg.SOLVER.CLIP_GRAD > 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.CLIP_GRAD)
+                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.CLIP_GRAD)
+                if not torch.isfinite(grad_norm):
+                    if is_main_process():
+                        print('Skipping batch {}: non-finite grad norm ({})'.format(i, grad_norm.item()), flush=True)
+                    optimizer.zero_grad()
+                    continue
             optimizer.step()
         # ------------ training operations ----------
 
