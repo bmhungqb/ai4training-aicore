@@ -412,7 +412,7 @@ class BatchedSegmentClassifier:
     def _load_action_segments(self) -> KinematicReport:
         if not self.action_segments_path.exists():
             raise SystemExit(
-                f"Missing {self.action_segments_path} — run `python pipeline.py segment` first.")
+                f"Missing {self.action_segments_path} — run `python -m src.action_segment.pipeline segment` first.")
         return parse_action_segments(self.action_segments_path)
 
     def _build_expert_refs(self) -> list[str]:
@@ -885,7 +885,7 @@ class SegmentClassifier:
         """Load Phase 1's action_segments.json (worker action boundaries)."""
         if not self.action_segments_path.exists():
             raise SystemExit(
-                f"Missing {self.action_segments_path} — run `python pipeline.py segment` "
+                f"Missing {self.action_segments_path} — run `python -m src.action_segment.pipeline segment` "
                 "(Phase 1) first.")
         return parse_action_segments(self.action_segments_path)
 

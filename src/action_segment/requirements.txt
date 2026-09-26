@@ -1,4 +1,4 @@
-# Dependencies for Action Segmentation (Phase 1 Kinematic Segmentation + Phase 2 VLM Analysis)
+# Dependencies for Action Segmentation (Phase 1 Kinematic + Phase 2 VLM Analysis)
 torch
 transformers
 scipy
@@ -6,3 +6,5 @@ matplotlib
 huggingface_hub
 requests
 opencv-python
+pyyaml
+gdown

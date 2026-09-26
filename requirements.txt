@@ -1,3 +1,0 @@
-opencv-python
-gdown  # tools/download_videos.py: public Google Drive folder listing/download
-pyyaml

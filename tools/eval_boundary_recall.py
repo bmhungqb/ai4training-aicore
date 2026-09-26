@@ -757,7 +757,7 @@ def main() -> None:
             print("\nDanh sách video chưa chạy Stage 1:")
             for cd, vf, reason in skipped:
                 print(f"  • [CĐ {cd:2s}] {vf} -> {reason}")
-            print("\nGợi ý: Hãy chạy Stage 1 trước: python pipeline.py segment --all-data --visualize")
+            print("\nGợi ý: Hãy chạy Stage 1 trước: python -m src.action_segment.pipeline segment --all-data --visualize")
         return
 
     # =========================================================================
@@ -974,7 +974,7 @@ def main() -> None:
         print(f"\nCó {len(skipped)} công đoạn trong data/ chưa chạy Stage 1:")
         for cd, vf, reason in skipped:
             print(f"  • [CĐ {cd:2s}] {vf}")
-        print("  => Chạy lệnh sau để tính tiếp các công đoạn này: python pipeline.py segment --all-data --visualize")
+        print("  => Chạy lệnh sau để tính tiếp các công đoạn này: python -m src.action_segment.pipeline segment --all-data --visualize")
 
     print("=" * 115)
 

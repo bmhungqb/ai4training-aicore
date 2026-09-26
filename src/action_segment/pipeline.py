@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """CLI entry point for the 2-phase sewing-skill evaluation pipeline.
 
-    python pipeline.py segment                  # Phase 1: worker action segmentation
-    python pipeline.py analyze                  # Phase 2: VLM analysis (expert -> classify -> macro -> micro)
-    python pipeline.py all                       # both phases
+    python -m src.action_segment.pipeline segment                  # Phase 1: worker action segmentation
+    python -m src.action_segment.pipeline analyze                  # Phase 2: VLM analysis (expert -> classify -> macro -> micro)
+    python -m src.action_segment.pipeline all                       # both phases
 
 Each phase can be narrowed to one sub-step with --step, and re-runs its
 sub-steps' inputs from disk instead of needing the whole phase re-run:
 
-    python pipeline.py segment --step kinematic
-    python pipeline.py analyze --step expert
-    python pipeline.py analyze --step classify
-    python pipeline.py analyze --step macro
-    python pipeline.py analyze --step micro
+    python -m src.action_segment.pipeline segment --step kinematic
+    python -m src.action_segment.pipeline analyze --step expert
+    python -m src.action_segment.pipeline analyze --step classify
+    python -m src.action_segment.pipeline analyze --step macro
+    python -m src.action_segment.pipeline analyze --step micro
 """
 from __future__ import annotations
 

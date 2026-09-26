@@ -17,7 +17,7 @@
   - `decomposed_motion.npz`: Per-frame velocity, directional turbulence, and transition likelihood.
   - `pipe1_report.json`: Quantitative segmentation report.
 - **Repository Location**:
-  - Orchestration: `pipeline.py segment`
+  - Orchestration: `python -m src.action_segment.pipeline segment`
   - Kinematic sub-pipeline: `src/action_segment/segmentation/` & `src/action_segment/kinematic_pipeline/`
 
 ### 1.2. Dataset & Directory Layout
@@ -44,17 +44,17 @@ ai4training-aicore-poc/
 # Dependencies
 sudo apt update && sudo apt install -y ffmpeg
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-pip install -r requirements.txt -r requirements-kinematic.txt
+pip install -r src/action_segment/requirements.txt
 huggingface-cli login                           # Required for SAM 3 access
 
 # Run Stage 1 (Batch across all operations)
-python pipeline.py segment --all-data --visualize
+python -m src.action_segment.pipeline segment --all-data --visualize
 
 # Run single operation (e.g. CD 1)
-python pipeline.py segment --cong-doan 1 --visualize
+python -m src.action_segment.pipeline segment --cong-doan 1 --visualize
 
 # Run on low VRAM GPUs
-python pipeline.py segment --all-data --resize-scale 0.25 --frame-step 2 --frame-by-frame
+python -m src.action_segment.pipeline segment --all-data --resize-scale 0.25 --frame-step 2 --frame-by-frame
 ```
 
 ---

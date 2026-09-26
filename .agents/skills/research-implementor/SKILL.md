@@ -38,7 +38,7 @@ The **Implementor Agent** translates the approved debate verdict into clean, rep
 
 - Approved Verdict: `experiments/<track>/<iteration_id>/04_debate_verdict.md`.
 - Experiment Plan: `experiments/<track>/<iteration_id>/03_research_plan.md`.
-- Codebase: `src/`, `tools/`, `pipeline.py`.
+- Codebase: `src/`, `tools/`.
 - Templates: `experiments/templates/`.
 
 ## Outputs

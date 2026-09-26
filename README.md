@@ -71,10 +71,11 @@ by side, asking the VLM which small step is slow, why, and how to improve it.
 ## Modules
 
 ```
-pipeline.py                 # CLI entry point: segment | analyze | all
-
 src/
   action_segment/           # Action segmentation pipeline
+    pipeline.py             # CLI entry point: segment | analyze | all
+    requirements.txt        # Dependencies for Action Segmentation (Kinematic + VLM)
+
     segmentation/           # Phase 1 — no VLM, no expert knowledge
       kinematic.py          # KinematicSegmenter (subprocess into kinematic_pipeline/),
                             # action_segments.json read/write helpers
@@ -191,7 +192,7 @@ data/
 ## 1. Install
 
 ```bash
-pip install -r requirements.txt
+pip install -r src/action_segment/requirements.txt
 cp .env.example .env   # then fill in OPENROUTER_API_KEY
 ```
 
@@ -262,30 +263,30 @@ The page lists every video under `--dir` (recursively), shows its first frame, a
 (brush) or draw a polygon over the area to KEEP. Saving writes `<video_stem>.mask.png` next to the
 video (e.g. `data/worker.mask.png`) — no other config needed, `src/segmentation/kinematic.py` picks
 it up automatically the next time Phase 1 (or the expert sub-step) runs on that video. No mask file =
-full frame, unchanged behavior. Pass `--mask <path>` to `pipeline.py segment` to point at a mask
+full frame, unchanged behavior. Pass `--mask <path>` to `python -m src.action_segment.pipeline segment` to point at a mask
 outside the default naming convention.
 
 ## 3. Run
 
 ```bash
-python pipeline.py all      # both phases in one process (recommended)
+python -m src.action_segment.pipeline all      # both phases in one process (recommended)
 ```
 
 Or one phase at a time:
 
 ```bash
-python pipeline.py segment  # Phase 1: worker action segmentation (no VLM)
-python pipeline.py analyze  # Phase 2: expert -> classify -> macro -> micro (needs Phase 1's output)
+python -m src.action_segment.pipeline segment  # Phase 1: worker action segmentation (no VLM)
+python -m src.action_segment.pipeline analyze  # Phase 2: expert -> classify -> macro -> micro (needs Phase 1's output)
 ```
 
 Or one sub-step at a time, re-reading its inputs from disk:
 
 ```bash
-python pipeline.py segment --step kinematic
-python pipeline.py analyze --step expert
-python pipeline.py analyze --step classify
-python pipeline.py analyze --step macro
-python pipeline.py analyze --step micro
+python -m src.action_segment.pipeline segment --step kinematic
+python -m src.action_segment.pipeline analyze --step expert
+python -m src.action_segment.pipeline analyze --step classify
+python -m src.action_segment.pipeline analyze --step macro
+python -m src.action_segment.pipeline analyze --step micro
 ```
 
 `all` / `analyze` (no `--step`) are recommended end-to-end: later sub-steps read earlier ones' results
@@ -360,7 +361,7 @@ truth — see above). Reference frame selection within each scene is automatic, 
    `scene["selected_frame_indices"]`, then `build_selection_manifest()` extracts those exact frames
    from `expert.mp4` by index into `selected_frames.json`, same as before.
 
-This all happens automatically as part of `python pipeline.py analyze --step expert` (or
+This all happens automatically as part of `python -m src.action_segment.pipeline analyze --step expert` (or
 `all`/`analyze`) — no extra pass, no manual curation needed. Use `--force-kinematic-expert` to force
 re-running kinematic segmentation on `expert.mp4` instead of reusing a cached report.
 
