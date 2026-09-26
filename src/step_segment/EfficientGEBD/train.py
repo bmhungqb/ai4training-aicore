@@ -534,7 +534,7 @@ def main(cfg, args):
 
     start_epoch = -1
     if args.resume:
-        state_dict = torch.load(args.resume, map_location='cpu')
+        state_dict = torch.load(args.resume, map_location='cpu', weights_only=False)
         model.load_state_dict(state_dict['model'])
         start_epoch = state_dict['epoch']
         if is_main_process():
@@ -550,6 +550,18 @@ def main(cfg, args):
     output_dir = cfg.OUTPUT_DIR + exp_name
     os.makedirs(output_dir, exist_ok=True)
     args.output_dir = output_dir
+
+    # Refuse to start if this run's checkpoint save path is the same file we just
+    # loaded from -- otherwise the first epoch with F1 > 0 would silently overwrite
+    # (and destroy) the source checkpoint, since `best_f1` starts fresh at 0 for a
+    # new process. Use a different --expname (or move/copy the source checkpoint)
+    # when resuming/fine-tuning from an existing run's output dir.
+    dst_ckpt = os.path.join(output_dir, 'model_best.pth')
+    if args.resume and os.path.abspath(args.resume) == os.path.abspath(dst_ckpt):
+        raise ValueError(
+            'Refusing to start: --resume path ({}) is the same file this run '
+            'would save to ({}). Use a different --expname, or copy the source checkpoint '
+            'elsewhere first.'.format(args.resume, dst_ckpt))
 
     if not os.path.exists(os.path.join(output_dir, 'scripts')):
         os.makedirs(os.path.join(output_dir, 'scripts'), exist_ok=True)
@@ -588,7 +600,9 @@ def main(cfg, args):
     auto_cast = torch.cuda.amp.autocast if cfg.SOLVER.AMPE else suppress
     loss_scaler = torch.cuda.amp.GradScaler() if cfg.SOLVER.AMPE else None
 
-    best_f1 = 0.
+    # Restore best_f1 from the resumed checkpoint (if present) so a genuine resume
+    # doesn't overwrite a better checkpoint with a worse one from a fresh best_f1=0.
+    best_f1 = state_dict.get('best_f1', 0.) if args.resume else 0.
     for epoch in range(start_epoch + 1, cfg.SOLVER.MAX_EPOCHS):
         train_one_epoch(cfg, args, model, device, optimizer, train_data_loader, summary_writer, auto_cast, loss_scaler, epoch)
         metrics_list = validate(cfg, args, model, device, val_data_loader, epoch)
@@ -609,7 +623,8 @@ def main(cfg, args):
                     'epoch': epoch,
                     'optimizer': optimizer.state_dict(),
                     'scheduler': scheduler.state_dict(),
-                    'metrics': metrics_list
+                    'metrics': metrics_list,
+                    'best_f1': f1,
                 }, save_path)
                 best_f1 = f1
                 saved_this_epoch = True
