@@ -53,6 +53,12 @@ def prepare_gebd_annotations(cfg, root, name, split):
         # tools/prepare_diff_gebd_dataset.py. Annotation format follows the
         # same Kinetics-GEBD schema (fps, path_frame, substages_myframeidx, ...).
         ann_path = resolve_path(os.path.join('data', 'diff_gebd_dataset', f'{split}_annotation.pkl'))
+    elif name == 'SEWING_CHUNKED':
+        # Same as SEWING, but videos are pre-chunked into ~10-15s clips by
+        # tools/chunk_diff_gebd_dataset.py so that END_TO_END's np.linspace
+        # sampling actually spans a short clip (matching SEQUENCE_LENGTH),
+        # instead of skipping over boundaries in multi-minute source videos.
+        ann_path = resolve_path(os.path.join('data', 'diff_gebd_dataset', f'{split}_annotation_chunked.pkl'))
     else:
         raise NotImplemented
 
@@ -236,6 +242,8 @@ class GEBDDataset(Dataset):
             self.ann_path = resolve_path(os.path.join('data', f'k400_mr345_{split}_min_change_duration0.3.pkl'))
         elif name == 'SEWING':
             self.ann_path = resolve_path(os.path.join('data', 'diff_gebd_dataset', f'{split}_annotation.pkl'))
+        elif name == 'SEWING_CHUNKED':
+            self.ann_path = resolve_path(os.path.join('data', 'diff_gebd_dataset', f'{split}_annotation_chunked.pkl'))
         else:
             self.ann_path = None
         self.cfg = cfg
