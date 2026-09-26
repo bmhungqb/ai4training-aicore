@@ -40,8 +40,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pickle
 import random
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -180,11 +182,11 @@ def ffprobe_fps_duration(video_path: Path) -> tuple[float, float, int]:
     return fps, duration, nb_frames
 
 
-def extract_frames(video_path: Path, out_dir: Path, overwrite: bool = False) -> int:
+def extract_frames(video_path: Path, out_dir: Path, overwrite: bool = False) -> tuple[int, bool]:
     out_dir.mkdir(parents=True, exist_ok=True)
     existing = list(out_dir.glob("frame*.jpg"))
     if existing and not overwrite:
-        return len(existing)
+        return len(existing), False
     for f in existing:
         f.unlink()
     cmd = [
@@ -193,15 +195,20 @@ def extract_frames(video_path: Path, out_dir: Path, overwrite: bool = False) -> 
         str(out_dir / "frame%d.jpg"),
     ]
     subprocess.run(cmd, check=True)
-    return len(list(out_dir.glob("frame*.jpg")))
+    return len(list(out_dir.glob("frame*.jpg"))), True
 
 
 # --------------------------------------------------------------------------- #
 # Main annotation build
 # --------------------------------------------------------------------------- #
-def build_annotation(video_dirs: list[Path], images_out_dir: Path, repo_root: Path,
+def build_annotation(video_dirs: list[Path], split: str, images_dir: Path, repo_root: Path,
                       overwrite: bool, mask_margin: float, apply_roi: bool) -> dict:
     annotation: dict = {}
+    images_out_dir = images_dir / split
+    images_out_dir.mkdir(parents=True, exist_ok=True)
+    other_split = "val" if split == "train" else "train"
+    other_images_dir = images_dir / other_split
+
     for video_dir in video_dirs:
         mp4_path = find_mp4(video_dir)
         if mp4_path is None:
@@ -217,12 +224,32 @@ def build_annotation(video_dirs: list[Path], images_out_dir: Path, repo_root: Pa
         vid = video_unique_id(video_dir)
         frame_dir = images_out_dir / vid
 
+        # If this video was previously extracted in the opposite split, migrate it
+        other_frame_dir = other_images_dir / vid
+        if other_frame_dir.is_dir() and not frame_dir.exists():
+            print(f"Migrating existing frames for {vid} from {other_split} to {split}")
+            shutil.move(str(other_frame_dir), str(frame_dir))
+
+        # If not present in frame_dir, check if already extracted in diff_gebd_dataset
+        diff_frame_dir = Path("data/diff_gebd_dataset/images") / split / vid
+        if not frame_dir.exists() and diff_frame_dir.is_dir() and not overwrite:
+            diff_frames = list(diff_frame_dir.glob("frame*.jpg"))
+            if diff_frames:
+                print(f"Reusing {len(diff_frames)} frames for {vid} from diff_gebd_dataset")
+                frame_dir.mkdir(parents=True, exist_ok=True)
+                for src_f in diff_frames:
+                    dst_f = frame_dir / src_f.name
+                    try:
+                        os.link(src_f, dst_f)
+                    except OSError:
+                        shutil.copy2(src_f, dst_f)
+
         # Prefer the fps recorded in step_segments.json: it is the *effective*
         # fps (num_frames / duration) used when the boundary timestamps were
         # computed, which can differ from the container's nominal r_frame_rate
         # (e.g. variable frame rate videos advertised as 30fps but averaging ~15fps).
         _, ffprobe_duration, _ = ffprobe_fps_duration(mp4_path)
-        vlen = extract_frames(mp4_path, frame_dir, overwrite=overwrite)
+        vlen, newly_extracted = extract_frames(mp4_path, frame_dir, overwrite=overwrite)
         if vlen == 0:
             print(f"WARNING: failed to extract frames for {mp4_path}, skipping")
             continue
@@ -230,7 +257,7 @@ def build_annotation(video_dirs: list[Path], images_out_dir: Path, repo_root: Pa
         json_fps = step_segments.get("fps")
         fps = float(json_fps) if json_fps else (vlen / duration if duration else 25.0)
 
-        if apply_roi:
+        if apply_roi and newly_extracted:
             mask_path = find_mask_for_video(mp4_path)
             if mask_path is not None:
                 bbox_mask = compute_mask_bbox(mask_path, margin=mask_margin)
@@ -289,9 +316,7 @@ def main() -> None:
     apply_roi = not args.no_roi_mask
 
     for split, dirs in [("train", train_dirs), ("val", val_dirs)]:
-        split_images_dir = images_dir / split
-        split_images_dir.mkdir(parents=True, exist_ok=True)
-        annotation = build_annotation(dirs, split_images_dir, repo_root, args.overwrite, args.mask_margin, apply_roi)
+        annotation = build_annotation(dirs, split, images_dir, repo_root, args.overwrite, args.mask_margin, apply_roi)
         out_path = args.out_dir / f"{split}_annotation.pkl"
         with open(out_path, "wb") as f:
             pickle.dump(annotation, f)

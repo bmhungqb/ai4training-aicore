@@ -1,5 +1,5 @@
 # Same as config/sewing_diffgebd_resnet50.yaml, but trains on the *chunked*
-# Sewing dataset (see plans/plan_diff_dataloader.md) to fix the sampling
+# Sewing dataset (see docs/step_segment/diff_gebd.md) to fix the sampling
 # imbalance caused by END_TO_END's np.linspace running over whole (multi-minute)
 # videos instead of short clips.
 #
@@ -9,6 +9,27 @@
 #
 # Chunks are ~12s @ ~15fps (~150-180 frames), matching SEQUENCE_LENGTH=150 below
 # so np.linspace(1, vlen, 150) is close to a 1:1 sample instead of a ~40-frame skip.
+#
+# Training-process tuning (see docs/step_segment/diff_gebd.md follow-up):
+#  - MODEL.POS_LOSS_WEIGHT=5.0: up-weights the MSE loss near boundary frames,
+#    which are still a small minority of each chunk -> directly targets recall.
+#  - INPUT.GAUS_SIGMA=1.5 (was 0.8): widens the positive-target bump so more
+#    frames around each boundary get meaningful gradient signal.
+#  - SOLVER.ACCUM_STEPS=8 (effective batch=8) + CLIP_GRAD=1.0: BATCH_SIZE=1 is
+#    very noisy for this regression loss; gradient accumulation + clipping
+#    stabilizes optimization.
+#  - DIFFUSION.VAL_SEED (default 42 in modeling/config.py) fixes the DDIM
+#    reverse-diffusion starting noise during validation, so epoch-to-epoch
+#    metrics reflect real model changes instead of sampling RNG.
+#  - SOLVER.EMA_DECAY=0.999: validate/checkpoint on an EMA of the weights
+#    (standard for diffusion models) instead of the raw, noisy end-of-step
+#    weights.
+#  - MODEL.DROPOUT=0.2 (was hardcoded 0.1): a bit more regularization for the
+#    transformer decoder given the small (~25-video) dataset.
+#  - MODEL.BACKBONE.NAME can now be any torchvision ResNet-family model
+#    (resnet18/34/50/101/152, resnext50_32x4d, wide_resnet50_2, ...); kept at
+#    resnet50 here, but resnet34 is worth trying to reduce overfitting risk.
+
 DATASETS:
   TRAIN:
   - SEWING_CHUNKED_train
@@ -34,7 +55,7 @@ INPUT:
   END_TO_END: true
   FRAME_PER_SIDE: 5
   GAUSSIAN_TARGET: false
-  GAUS_SIGMA: 0.8
+  GAUS_SIGMA: 1.5
   ONLY_TARGET_GAUS: true
   RESOLUTION: 224
   SEQUENCE_LENGTH: 150
@@ -51,15 +72,19 @@ MODEL:
   FPN_START_IDX: 3
   HEAD_CHOICE: 3
   NAME: DiffusionMSE_CFG
+  DROPOUT: 0.2
   NUM_HEADS: 8
   NUM_LAYERS: 6
+  POS_LOSS_WEIGHT: 5.0
   SYNC_BN: false
   WINDOW_SIZE: 17
 OUTPUT_DIR: output/sewing_diffgebd_resnet50_chunked
 SOLVER:
+  ACCUM_STEPS: 8
   AMPE: true
   BATCH_SIZE: 1
-  CLIP_GRAD: 0.0
+  CLIP_GRAD: 1.0
+  EMA_DECAY: 0.999
   GAMMA: 0.1
   LR: 2.0e-05
   MAX_EPOCHS: 100

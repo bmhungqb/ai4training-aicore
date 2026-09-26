@@ -164,7 +164,7 @@ class DiffDecoder(Module):
         time_dim = dim * 4
         self.position_encoding = PositionalEncoding(dim)
         
-        encoder_layer = TransformerEncoderLayer(dim, nhead, dim_feedforward)
+        encoder_layer = TransformerEncoderLayer(dim, nhead, dim_feedforward, dropout=cfg.MODEL.DROPOUT)
         encoder_norm = nn.LayerNorm(dim)
         self.encoder = TransformerEncoder(encoder_layer, num_layers, encoder_norm)
         

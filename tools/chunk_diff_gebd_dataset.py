@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Chunk long Sewing videos into short (~10-15s) clips for DiffGEBD END_TO_END training.
 
-Root cause (see plans/plan_diff_dataloader.md): DiffGEBD's END_TO_END sampler does
+Root cause (see docs/step_segment/diff_gebd.md): DiffGEBD's END_TO_END sampler does
     selected_indices = np.linspace(1, vlen, cfg.INPUT.SEQUENCE_LENGTH)
 which assumes every video is already short (Kinetics-GEBD: ~10s / ~300 frames).
 Sewing videos are multi-minute, so this downsamples so aggressively that boundary

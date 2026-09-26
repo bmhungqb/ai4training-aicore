@@ -85,7 +85,20 @@ class DiffusionMSE(Module):
         self.guidance = guidance
         self.num_layers = self.head_choice - self.fpn_start_idx + 1
 
-        if self.backbone_name == 'resnet50':
+        # Any torchvision ResNet-family model works as a drop-in backbone here:
+        # they all expose conv1/bn1/relu/maxpool/layer1-4/fc, and the channel
+        # ratios below (in_feat_dim // 8, // 4, // 2, // 1) hold for both the
+        # BasicBlock family (resnet18/34: 512 -> 64/128/256/512) and the
+        # Bottleneck family (resnet50/101/152, resnext*, wide_resnet*: 2048 ->
+        # 256/512/1024/2048). Pick a smaller variant (resnet34) to reduce
+        # overfitting risk on small datasets, or a wider one (resnext50_32x4d,
+        # wide_resnet50_2) for more capacity if data/compute allow.
+        _SUPPORTED_RESNETS = (
+            'resnet18', 'resnet34', 'resnet50', 'resnet101', 'resnet152',
+            'resnext50_32x4d', 'resnext101_32x8d', 'resnext101_64x4d',
+            'wide_resnet50_2', 'wide_resnet101_2',
+        )
+        if self.backbone_name in _SUPPORTED_RESNETS:
             self.backbone = getattr(models, self.backbone_name)(pretrained=True, norm_layer=FrozenBatchNorm2d)
             in_feat_dim = self.backbone.fc.in_features
             for param in itertools.chain(self.backbone.conv1.parameters(), self.backbone.bn1.parameters()):
@@ -94,7 +107,7 @@ class DiffusionMSE(Module):
             del self.backbone.fc
             self.fpn_layers = [self.backbone.layer1, self.backbone.layer2, self.backbone.layer3, self.backbone.layer4][:self.head_choice+1]
         else:
-            raise ValueError(f"Unsupported backbone: {self.backbone_name}")
+            raise ValueError(f"Unsupported backbone: {self.backbone_name}. Supported: {_SUPPORTED_RESNETS}")
         
         self.avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         self.x1_out = nn.Identity() if self.dim == in_feat_dim // 8 else nn.Sequential(nn.Conv1d(in_feat_dim // 8, self.dim, 1), nn.ReLU(inplace=True)) # 256
@@ -122,6 +135,7 @@ class DiffusionMSE(Module):
         
         self.gaus_sigma = cfg.INPUT.GAUS_SIGMA
         self.only_gaus_target = cfg.INPUT.ONLY_TARGET_GAUS
+        self.pos_loss_weight = cfg.MODEL.POS_LOSS_WEIGHT
         #################################### Diffusion parameters ####################################
         self.cfg_prob = cfg.DIFFUSION.CFG_PROB
         self.cfg_scale = cfg.DIFFUSION.CFG_SCALE
@@ -140,6 +154,7 @@ class DiffusionMSE(Module):
         assert self.sampling_timesteps <= timesteps
         self.ddim_sampling_eta = cfg.DIFFUSION.DDIM_SAMPLING_ETA
         self.scale = cfg.DIFFUSION.SNR_SCALE
+        self.val_seed = cfg.DIFFUSION.VAL_SEED
         
         def register_buffer(name, val):
             return self.register_buffer(name, val.to(torch.float32))
@@ -268,7 +283,16 @@ class DiffusionMSE(Module):
 
             logits = logits.to(torch.float32)
             loss_targets = loss_targets.to(torch.float32)
-            loss = F.mse_loss(logits, loss_targets)
+
+            if self.pos_loss_weight != 1.0:
+                # loss_targets is in [-1, 1] (background ~ -1, boundary peak ~ +1);
+                # remap to [0, 1] to use as an up-weighting factor for frames
+                # close to a boundary.
+                boundary_weight = (loss_targets.detach() + 1.0) / 2.0
+                weight = 1.0 + (self.pos_loss_weight - 1.0) * boundary_weight
+                loss = (F.mse_loss(logits, loss_targets, reduction='none') * weight).mean()
+            else:
+                loss = F.mse_loss(logits, loss_targets)
 
             if not zero_cond and self.enc_out:
                 cond = einops.rearrange(cond, 't b c -> b c t')
@@ -325,7 +349,19 @@ class DiffusionMSE(Module):
         time_pairs = list(zip(times[:-1], times[1:]))
 
         shape = (B, 1, T)
-        x_time = torch.randn(shape, device=self.device)
+
+        # ddim_sample always starts from fresh gaussian noise (even with
+        # DDIM_SAMPLING_ETA=0, which only removes noise *between* steps), so
+        # without seeding, the same model weights would score differently on
+        # every validation call, making epoch-to-epoch metrics/best-checkpoint
+        # selection unreliable. Use a fixed, reproducible generator instead of
+        # torch.manual_seed to avoid disturbing the global RNG (training uses it).
+        if not self.training and self.val_seed is not None and self.val_seed >= 0:
+            generator = torch.Generator(device=self.device).manual_seed(self.val_seed)
+        else:
+            generator = None
+
+        x_time = torch.randn(shape, device=self.device, generator=generator)
         x_start = None
         
         for time, time_next in time_pairs:
@@ -349,7 +385,7 @@ class DiffusionMSE(Module):
             sigma = eta * ((1 - alpha / alpha_next) * (1 - alpha_next) / (1 - alpha)).sqrt()
             c = (1 - alpha_next - sigma ** 2).sqrt()
 
-            noise = torch.randn_like(x_time)
+            noise = torch.randn_like(x_time) if generator is None else torch.randn(x_time.shape, device=self.device, generator=generator)
 
             x_time = x_start * alpha_next.sqrt() + \
                   c * pred_noise + \

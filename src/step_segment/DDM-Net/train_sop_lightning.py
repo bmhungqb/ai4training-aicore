@@ -133,7 +133,7 @@ class SOPLightningModule(L.LightningModule):
         with equal weight (18 losses for a 6-layer decoder) drowns out the
         gradient of the main head (`outputs[-1]`) with noisy signal from the
         shallow layers, keeping the loss stuck near `n_heads * ln(2)`.
-        See issues/step_segment_training_issues.md.
+        See docs/step_segment/ddm_net.md.
         """
         main_loss = self.criterion(outputs[-1], target)
 
@@ -160,7 +160,7 @@ class SOPLightningModule(L.LightningModule):
         # Calculate loss: focus on the main head (outputs[-1]), and down-weight
         # the auxiliary heads (intermediate layer outputs + rgb/ddm branches) so
         # they don't drown out the main signal when summed (see
-        # issues/step_segment_training_issues.md).
+        # docs/step_segment/ddm_net.md).
         loss = self._compute_loss(outputs, rgbs, ddms, target)
 
         # Logging

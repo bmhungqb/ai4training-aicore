@@ -92,5 +92,5 @@ python tools/benchmark_step_segment_models.py \
   --pred-b efficient_gebd_preds.json --name-b EfficientGEBD
 ```
 
-See `docs/step_segment_diffgebd_training_guidance.md` for the full walkthrough and a
+See `docs/step_segment/diff_gebd.md` for the full walkthrough and a
 DDM-Net vs EfficientGEBD vs DiffGEBD comparison table.

@@ -44,7 +44,7 @@ dataset_config:
     anno_path: data/ddm_dataset/val_annotation.json
     data_root: data/ddm_dataset/videos
     temporal_stride: 1
-    # --- RAM-growth mitigation (see issues/step_segment_validating_issues.md) ---
+    # --- RAM-growth mitigation (see docs/step_segment/ddm_net.md) ---
     # Validation streams every frame of every val video (dense, temporal_stride=1),
     # unlike training's sparse sampling, so it needs its own, more conservative
     # worker/reader settings to avoid System RAM OOM.
@@ -95,7 +95,7 @@ training_config:
   clip_grad: 1.0            # gradient clipping to stabilize training with the multi-head aux loss
   clip_mode: "norm"
   aux_loss_weight: 0.3      # down-weight the 5 aux intermediate-layer heads (outputs/rgbs/ddms)
-                            # relative to the main head (outputs[-1]); see issues/step_segment_training_issues.md
+                            # relative to the main head (outputs[-1]); see docs/step_segment/ddm_net.md
 
   amp: true   # mixed precision - needed to keep ViT-L/518 activations within 16GB
 

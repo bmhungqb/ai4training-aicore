@@ -131,8 +131,10 @@ tools/
                            # for each one, save it as "<video_stem>.mask.png" next to the video —
                            # see "Optional: mask out other people in frame" below.
 
-docs/                      # Technical guides and Stage 2 architectural documentation
-experiments/               # Experiment reports, evaluation metrics, and Excel/JSON data artifacts
+docs/                      # Method trackers and architectural documentation (Single Source of Truth)
+  action_segment/          # Trackers for Stage 1 Kinematic & Stage 2 VLM Analysis
+  step_segment/            # Trackers for DDM-Net, DiffGEBD, EfficientGEBD
+experiments/               # Runtime experiment outputs, predictions, and evaluation Excel/JSON artifacts
 ```
 
 Conventions:
