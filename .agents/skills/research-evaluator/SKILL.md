@@ -57,33 +57,18 @@ The **Evaluator Agent** is the objective observer of the AI Research Loop. Its j
 
 ## Execution Workflow
 
-### Triggering the Evaluator in Chat
-When the user tags `@research-evaluator` and provides the experiment info / path, e.g.:
-> *"@research-evaluator đây là kết quả DiffGEBD exp_001_baseline (outputs/step_segment/diff_gebd/iter_01/exp_001_baseline) => hãy giúp tôi"*
+1. Execute the comprehensive evaluation and inspection tool:
+   ```bash
+   python tools/eval_and_inspect_errors.py \
+       --output-dir outputs/<track>/<iteration_id>/<exp_id> \
+       --report-dir experiments/<track>/<iteration_id> \
+       --track <track> --iter-id <iteration_id> --exp-id <exp_id> \
+       --top-k-errors 4 --viz
+   ```
+2. Review the generated `01_eval_report.md` and `eval_report.json`.
+3. Check the extracted visual error frames in `error_cases/` to ensure visual observations are accurate and objective.
+4. Update `experiments/<track>/<track>_overview.md` with the verified Macro F1 (0.5s), Recall, Precision, and status.
+5. Conclude and prompt the user:
+   "Evaluation complete with training log health and visual error evidence. Proceed to run `@research-diagnoser` to formulate root-cause hypotheses based on these facts."
 
-You must perform the following autonomous steps:
-1. **Locate & Read Experiment Files**:
-   - Check the provided folder path for `train.log` (or `run.log`), `metrics.json`, and `predictions.json` using `view_file`.
-   - If files exist in the path, extract:
-     - Initial loss, minimum loss, final loss, learning rate changes, and check for anomalies (plateau, overfitting, explosion).
-     - Macro F1, Precision, Recall at 0.25s, 0.5s, 1.0s, and per-video metrics.
-     - Top 3-4 severe false negatives (missed transitions > 1.0s) and severe false positives.
-   - If the tool `python tools/eval_and_inspect_errors.py` can be executed, run it to automatically generate frames and the report:
-     ```bash
-     python tools/eval_and_inspect_errors.py \
-         --output-dir <provided_exp_folder> \
-         --report-dir experiments/<track>/<model>/<iteration_id> \
-         --track <track> --iter-id <iteration_id> --exp-id <exp_id> \
-         --top-k-errors 4 --viz
-     ```
-   - If running as a pure chat/file reader, read `metrics.json` and `train.log`, then write `experiments/<track>/<model>/<iteration_id>/01_eval_report.md` and `eval_report.json` directly using `write_to_file`.
-
-2. **Update the Master Tracker**:
-   - Update `experiments/step_segment/step_segment_overview.md` with the verified Macro F1 (0.5s), Recall, Precision, and status.
-
-3. **Respond with Objective Summary**:
-   - Present the 2 pillars clearly: (1) Training Log Health, (2) Validation Performance & Top Severe Errors.
-   - Strictly adhere to the Evaluator Constraint: No guessing root causes, no proposing solutions.
-   - Guide the user to the next phase:
-     *"Báo cáo đánh giá đã được tạo tại `01_eval_report.md`. Hãy gọi `@research-diagnoser` để chẩn đoán nguyên nhân gốc rễ của các lỗi này."*
 
