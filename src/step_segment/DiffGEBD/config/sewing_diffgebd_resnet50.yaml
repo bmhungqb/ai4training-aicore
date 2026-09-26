@@ -27,18 +27,18 @@ INPUT:
   ANNOTATORS: 1              # single annotator (our step_segments.json has one GT source)
   ANNOTATOR_SELECT: best
   ARGUMENT: true
-  DOWNSAMPLE: 3
+  DOWNSAMPLE: 1
   DYNAMIC_DOWNSAMPLE: false
   END_TO_END: true
   FRAME_PER_SIDE: 5
   GAUSSIAN_TARGET: false
-  GAUS_SIGMA: 0.8
+  GAUS_SIGMA: 0.5
   ONLY_TARGET_GAUS: true
   RESOLUTION: 224
-  SEQUENCE_LENGTH: 100
+  SEQUENCE_LENGTH: 150
 MODEL:
   BACKBONE:
-    FREEZE: false
+    FREEZE: true
     NAME: resnet50
   CLASS_DIM: 1
   DECODER: transformer
@@ -59,7 +59,7 @@ MODEL:
 OUTPUT_DIR: output/sewing_diffgebd_resnet50
 SOLVER:
   AMPE: true
-  BATCH_SIZE: 2
+  BATCH_SIZE: 1
   CLIP_GRAD: 0.0
   GAMMA: 0.1
   LR: 2.0e-05
