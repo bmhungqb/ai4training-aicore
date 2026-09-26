@@ -19,7 +19,7 @@ def is_unknown(name: str | None) -> bool:
     return not name or not name.strip() or name.strip().upper() in ["UNKNOWN", "NONE"]
 
 
-def collect_data(data_dir: Path, html_dir: Path) -> list[dict]:
+def collect_data(data_dir: Path, html_dir: Path, pred_dir: Path | None = None) -> list[dict]:
     items = []
     for step_file in sorted(data_dir.rglob("step_segments.json")):
         parent = step_file.parent
@@ -27,6 +27,14 @@ def collect_data(data_dir: Path, html_dir: Path) -> list[dict]:
         if not mp4s:
             continue
         mp4 = mp4s[0]
+        
+
+        if pred_dir:
+            step_file_to_read = pred_dir / vid_id / "step_segments_pred.json"
+            if not step_file_to_read.exists():
+                continue
+        else:
+            step_file_to_read = step_file
 
         # Calculate relative path from html_dir to mp4
         try:
@@ -51,11 +59,9 @@ def collect_data(data_dir: Path, html_dir: Path) -> list[dict]:
                 rel_mask_from_root = mask_file.resolve().relative_to(Path(".").resolve())
                 mask_src = f"../{rel_mask_from_root}"
 
-        data = json.loads(step_file.read_text())
+        data = json.loads(step_file_to_read.read_text())
         segs = data.get("segments", [])
-        cd = parent.parent.name
-        chuyen = parent.name
-        vid_id = f"{cd}_{chuyen}"
+        
 
         # Mark trimmed edge unknown flags
         start_idx = 0
@@ -782,10 +788,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     parser.add_argument("--out-dir", type=Path, default=Path("visualize_html"))
+    parser.add_argument("--pred-dir", type=Path, default=None, help="Directory containing predicted step_segments_pred.json files")
     args = parser.parse_args()
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    items = collect_data(args.data_dir, args.out_dir)
+    items = collect_data(args.data_dir, args.out_dir, args.pred_dir)
 
     dataset_json = json.dumps(items, ensure_ascii=False)
     html_content = HTML_TEMPLATE.replace("%DATASET_JSON%", dataset_json)
