@@ -14,7 +14,7 @@ def build_dataloader(cfg, args, dataset_splits, train):
     assert len(dataset_splits) >= 1
 
     def build_dataset(dataset):
-        name, split = dataset.split('_')
+        name, split = dataset.rsplit('_', 1)
 
         def _resolve(p):
             if not p:
@@ -28,6 +28,9 @@ def build_dataloader(cfg, args, dataset_splits, train):
             'GEBD': _resolve(os.getenv('GEBD_ROOT', args.gebd_data_dir)),
             'TAPOS': _resolve(os.getenv('TAPOS_ROOT', args.tapos_data_dir)),
             'SEWING': _resolve(os.getenv('SEWING_ROOT', args.sewing_data_dir)),
+            # Chunked variant (tools/chunk_diff_gebd_dataset.py) lives under the
+            # same dataset dir (images/{split}/<vid>__chunk<i>/ symlinks).
+            'SEWING_CHUNKED': _resolve(os.getenv('SEWING_ROOT', args.sewing_data_dir)),
         }
 
         datasets = {
@@ -40,6 +43,10 @@ def build_dataloader(cfg, args, dataset_splits, train):
                 'val': 'rgb'
             },
             'SEWING': {
+                'train': 'train',
+                'val': 'val',
+            },
+            'SEWING_CHUNKED': {
                 'train': 'train',
                 'val': 'val',
             },
@@ -56,11 +63,12 @@ def build_dataloader(cfg, args, dataset_splits, train):
                                 template=template,
                                 train=train)
 
-        elif name == 'SEWING':
+        elif name in ('SEWING', 'SEWING_CHUNKED'):
             # Industrial sewing step-segmentation dataset, built by
-            # tools/prepare_diff_gebd_dataset.py. Uses the same Kinetics-GEBD
-            # annotation schema/loader as 'GEBD', but frames are named
-            # frame<N>.jpg (1-indexed) instead of img_%05d.jpg.
+            # tools/prepare_diff_gebd_dataset.py (+ tools/chunk_diff_gebd_dataset.py
+            # for the chunked variant). Uses the same Kinetics-GEBD annotation
+            # schema/loader as 'GEBD', but frames are named frame<N>.jpg
+            # (1-indexed) instead of img_%05d.jpg.
             template = 'frame{:d}.jpg'
             dataset = GEBDDataset(cfg, root=root,
                                 name=name,
