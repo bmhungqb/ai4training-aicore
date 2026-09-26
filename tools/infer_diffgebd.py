@@ -20,6 +20,24 @@ def main():
     
     config_path = Path(args.config_file).resolve()
     weights_path = Path(args.weights).resolve()
+    out_dir = Path(args.out_dir).resolve()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    class TeeLogger:
+        def __init__(self, filepath, stream):
+            self.file = open(filepath, "a", encoding="utf-8", buffering=1)
+            self.stream = stream
+        def write(self, data):
+            self.stream.write(data)
+            self.stream.flush()
+            self.file.write(data)
+            self.file.flush()
+        def flush(self):
+            self.stream.flush()
+            self.file.flush()
+
+    sys.stdout = TeeLogger(out_dir / "infer.log", sys.stdout)
+    sys.stderr = TeeLogger(out_dir / "infer.log", sys.stderr)
     
     print("=" * 60)
     print("1/2: Running DiffGEBD native inference (--test-only)...")

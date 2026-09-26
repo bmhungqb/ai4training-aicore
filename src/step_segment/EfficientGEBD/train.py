@@ -553,6 +553,25 @@ def main(cfg, args):
     os.makedirs(output_dir, exist_ok=True)
     args.output_dir = output_dir
 
+    if is_main_process():
+        class TeeLogger:
+            def __init__(self, filepath, stream):
+                self.file = open(filepath, "a", encoding="utf-8", buffering=1)
+                self.stream = stream
+            def write(self, data):
+                self.stream.write(data)
+                self.stream.flush()
+                self.file.write(data)
+                self.file.flush()
+            def flush(self):
+                self.stream.flush()
+                self.file.flush()
+
+        train_log_file = os.path.join(output_dir, "train.log")
+        sys.stdout = TeeLogger(train_log_file, sys.stdout)
+        sys.stderr = TeeLogger(train_log_file, sys.stderr)
+
+
     # Refuse to start if this run's checkpoint save path is the same file we just
     # loaded from -- otherwise the first epoch with F1 > 0 would silently overwrite
     # (and destroy) the source checkpoint, since `best_f1` starts fresh at 0 for a

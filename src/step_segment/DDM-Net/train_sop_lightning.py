@@ -702,6 +702,24 @@ def main():
         output_dir = os.path.join(train_cfg['output'], "train", train_cfg['exp_name'])
     os.makedirs(output_dir, exist_ok=True)
 
+    # AI Research Loop: Tee all stdout/stderr to train.log
+    class TeeLogger:
+        def __init__(self, filepath, stream):
+            self.file = open(filepath, "a", encoding="utf-8", buffering=1)
+            self.stream = stream
+        def write(self, data):
+            self.stream.write(data)
+            self.stream.flush()
+            self.file.write(data)
+            self.file.flush()
+        def flush(self):
+            self.stream.flush()
+            self.file.flush()
+
+    train_log_file = os.path.join(output_dir, "train.log")
+    sys.stdout = TeeLogger(train_log_file, sys.stdout)
+    sys.stderr = TeeLogger(train_log_file, sys.stderr)
+
     # Save complete config to output directory
     config_save_path = os.path.join(output_dir, 'config.yaml')
     save_config(config, config_save_path)
@@ -748,12 +766,7 @@ def main():
     # Callbacks
     callbacks = []
 
-    # Force the tqdm progress bar. When `rich` is installed (now a transitive
-    # dep of the ML stack), Lightning auto-selects RichProgressBar, whose output
-    # is not emitted to the non-TTY pipe the training runs under and is not
-    # parseable by the service's log parser (parse_ddm_log expects tqdm
-    # "Epoch N: NN%|...train/loss_step=" lines). Explicitly using TQDMProgressBar
-    # restores the per-step progress lines so the training-status bar advances.
+    # Force the tqdm progress bar
     callbacks.append(TQDMProgressBar())
 
     checkpoint_callback = None
@@ -762,11 +775,11 @@ def main():
         checkpoint_mode = 'min' if 'loss' in train_cfg['eval_metric'].lower() else 'max'
         checkpoint_callback = ModelCheckpoint(
             dirpath=output_dir,
-            filename=f'epoch_{{epoch:03d}}-{{{checkpoint_monitor_metric}:.3f}}',
+            filename='model_best',
             monitor=checkpoint_monitor_metric,
             mode=checkpoint_mode,
-            save_top_k=train_cfg['checkpoint_top_k'],
-            save_last=True,
+            save_top_k=1,
+            save_last=False,
             verbose=True,
         )
         callbacks.append(checkpoint_callback)

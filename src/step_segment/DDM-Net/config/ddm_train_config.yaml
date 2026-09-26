@@ -110,7 +110,8 @@ training_config:
   output: "./output_lightning"
   exp_name: "step_segment_ddm_net"
   resume: null
-  checkpoint_top_k: 3
+  checkpoint_top_k: 1
+
 
   num_gpus: 1
   num_nodes: 1

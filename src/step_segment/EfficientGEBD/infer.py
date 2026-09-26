@@ -278,7 +278,25 @@ def main():
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    class TeeLogger:
+        def __init__(self, filepath, stream):
+            self.file = open(filepath, "a", encoding="utf-8", buffering=1)
+            self.stream = stream
+        def write(self, data):
+            self.stream.write(data)
+            self.stream.flush()
+            self.file.write(data)
+            self.file.flush()
+        def flush(self):
+            self.stream.flush()
+            self.file.flush()
+
+    sys.stdout = TeeLogger(output_dir / "infer.log", sys.stdout)
+    sys.stderr = TeeLogger(output_dir / "infer.log", sys.stderr)
+
     cache_dir = output_dir / '_frames_cache'
+
 
     gt_dict = None
     if args.gt:

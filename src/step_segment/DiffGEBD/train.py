@@ -332,10 +332,31 @@ def main(cfg, args):
                                             cfg.MODEL.DIMENSION,
                                             cfg.INPUT.SEQUENCE_LENGTH,   
                                             )
-    output_dir = cfg.OUTPUT_DIR + exp_name
+    if cfg.OUTPUT_DIR.endswith(os.sep) or cfg.OUTPUT_DIR.endswith(exp_name) or os.path.isabs(cfg.OUTPUT_DIR) or 'outputs' in cfg.OUTPUT_DIR:
+        output_dir = cfg.OUTPUT_DIR
+    else:
+        output_dir = cfg.OUTPUT_DIR + exp_name
     os.makedirs(output_dir, exist_ok=True)
     args.output_dir = output_dir
-    
+
+    if is_main_process():
+        class TeeLogger:
+            def __init__(self, filepath, stream):
+                self.file = open(filepath, "a", encoding="utf-8", buffering=1)
+                self.stream = stream
+            def write(self, data):
+                self.stream.write(data)
+                self.stream.flush()
+                self.file.write(data)
+                self.file.flush()
+            def flush(self):
+                self.stream.flush()
+                self.file.flush()
+
+        train_log_file = os.path.join(output_dir, "train.log")
+        sys.stdout = TeeLogger(train_log_file, sys.stdout)
+        sys.stderr = TeeLogger(train_log_file, sys.stderr)
+
     with open(os.path.join(output_dir,'config.yaml'), 'w') as f:
         f.write(cfg.dump())
 
@@ -426,13 +447,10 @@ def main(cfg, args):
             save_path = None
             if results[0.05][0] >= best_f1:
                 best_f1 = results[0.05][0]
-                save_path = os.path.join(output_dir, f'model_best.pth')
+                save_path = os.path.join(output_dir, 'model_best.pth')
                 torch.save(checkpoint, save_path)
-                print(f'Saved best model at {epoch}')
+                print(f'Saved best model at epoch {epoch} (F1@0.05: {best_f1:.4f})')
 
-            if results[0.05][0] >= 0.73:
-                save_path = os.path.join(output_dir, f'model_epoch{epoch:02d}.pth')
-                torch.save(checkpoint, save_path)
             with open(os.path.join(output_dir, 'metrics.txt'), 'a') as f:
                 f.write('Epoch: {:02d},Rel@0.05 F1: {:.4f}, Rec: {:.4f}, Prec: {:.4f}\n'.format(epoch, results[0.05][0], results[0.05][1], results[0.05][2]))
             
