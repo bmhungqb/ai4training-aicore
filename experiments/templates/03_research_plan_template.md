@@ -39,6 +39,8 @@
 Proposed experiments to run concurrently or sequentially in this iteration:
 
 ### Experiment 1: `{{EXP_001_DIR_NAME}}`
+- **Target Diagnoser Hypothesis**: Addresses `Hypothesis 1: {{HYPOTHESIS_NAME}}` (Confidence: {{CONFIDENCE}}%)
+- **Missing Probe Implemented**: {{HOW_THIS_EXPERIMENT_MEASURES_WHAT_WAS_MISSING}}
 - **Variable to Isolate**: {{EXACTLY_ONE_VARIABLE_CHANGED}}
 - **Baseline to Compare Against**: `{{BASELINE_EXP_ID}}`
 - **Implementation Changes**:
@@ -49,6 +51,8 @@ Proposed experiments to run concurrently or sequentially in this iteration:
   - Verification test: {{WHAT_TO_CHECK}}
 
 ### Experiment 2: `{{EXP_002_DIR_NAME}}`
+- **Target Diagnoser Hypothesis**: Addresses `Hypothesis 2: {{HYPOTHESIS_NAME}}` (Confidence: {{CONFIDENCE}}%)
+- **Missing Probe Implemented**: {{HOW_THIS_EXPERIMENT_MEASURES_WHAT_WAS_MISSING}}
 - **Variable to Isolate**: {{EXACTLY_ONE_VARIABLE_CHANGED}}
 - **Baseline to Compare Against**: `{{BASELINE_EXP_ID}}`
 - **Implementation Changes**:
