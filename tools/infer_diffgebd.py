@@ -12,6 +12,7 @@ def main():
     parser.add_argument("--split", type=str, choices=["val", "test"], default="val", help="Dataset split to evaluate")
     parser.add_argument("--out-dir", type=str, default="experiments/diffgebd_preds", help="Output directory for JSON predictions")
     parser.add_argument("--num-gpus", type=int, default=1, help="Number of GPUs to use")
+    parser.add_argument("--viz", action="store_true", help="Render annotated.mp4 and score_curve.png")
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parent.parent
@@ -80,6 +81,8 @@ def main():
         "--split", args.split,
         "--out-dir", str(Path(args.out_dir).resolve())
     ]
+    if args.viz:
+        export_cmd.append("--viz")
     
     subprocess.run(export_cmd, cwd=str(repo_root), check=True)
     
