@@ -79,11 +79,13 @@ def run_ddm_net(config: dict, output_dir: Path, mode: str, num_gpus: int, env: d
     ddm_dir = REPO_ROOT / "src" / "step_segment" / "DDM-Net"
     model_cfg = config.get("model_params", {})
     train_cfg = config.get("training_params", {})
+    ddm_config_file = resolve_config_file(config, "ddm_net_config_file", ddm_dir / "config" / "ddm_train_config.yaml")
 
     if mode == "train":
         cmd = [
             sys.executable,
             str(ddm_dir / "train_sop_lightning.py"),
+            "--config", str(ddm_config_file),
             "--output-dir", str(output_dir),
             "--num-gpus", str(num_gpus),
         ]
@@ -434,9 +436,11 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
     if model_type in ["ddm_net", "ddm"]:
         ddm_dir = REPO_ROOT / "src" / "step_segment" / "DDM-Net"
         if mode == "train":
+            ddm_config_file = resolve_config_file(config, "ddm_net_config_file", ddm_dir / "config" / "ddm_train_config.yaml")
             cmd = [
                 sys.executable,
                 str(ddm_dir / "train_sop_lightning.py"),
+                "--config", str(ddm_config_file),
                 "--output-dir", str(output_dir),
                 "--num-gpus", str(num_gpus),
             ]
