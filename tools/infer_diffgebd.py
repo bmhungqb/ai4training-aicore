@@ -59,11 +59,13 @@ def main():
         print("Could not parse OUTPUT_DIR from config.")
         sys.exit(1)
         
-    # The actual output dir has exp_name appended, which depends on config parameters.
-    # Let's just search for model_pred_dict_ep-1.pkl inside output_dir_base recursively.
-    pkl_files = list((diffgebd_dir / output_dir_base).rglob("model_pred_dict_ep-1.pkl"))
+    # The actual output dir has exp_name appended as a string suffix (not a subdirectory).
+    # e.g. output/sewing_diffgebd_resnet50_ann1_dim512_len150
+    # Let's just search inside diffgebd_dir / "output" recursively.
+    output_parent = diffgebd_dir / "output"
+    pkl_files = list(output_parent.rglob("model_pred_dict_ep-1.pkl"))
     if not pkl_files:
-        print(f"Could not find model_pred_dict_ep-1.pkl inside {diffgebd_dir / output_dir_base}")
+        print(f"Could not find model_pred_dict_ep-1.pkl inside {output_parent}")
         sys.exit(1)
         
     # Sort by modification time to get the one we JUST generated
