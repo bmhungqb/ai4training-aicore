@@ -333,14 +333,20 @@ def main():
         gt_frame_idx = [int(x) for x in gt_dict[vid]['substages_myframeidx'][0]] if (gt_dict and vid in gt_dict) else None
 
         result = {
-            'vid': vid, 'fps': fps, 'num_frames': vlen, 'threshold': threshold,
+            'vid': vid, 'fps': float(fps), 'num_frames': int(vlen), 'threshold': float(threshold),
             'predicted_boundaries': {
-                f'head{h}': {'frame_idx': pred_by_head[h], 'time_s': [round((p - 1) / fps, 3) for p in pred_by_head[h]]}
+                f'head{h}': {
+                    'frame_idx': [int(p) for p in pred_by_head[h]],
+                    'time_s': [round((int(p) - 1) / fps, 3) for p in pred_by_head[h]],
+                }
                 for h in range(num_heads)
             },
         }
         if gt_frame_idx is not None:
-            result['gt_boundaries'] = {'frame_idx': gt_frame_idx, 'time_s': [round((g - 1) / fps, 3) for g in gt_frame_idx]}
+            result['gt_boundaries'] = {
+                'frame_idx': [int(g) for g in gt_frame_idx],
+                'time_s': [round((int(g) - 1) / fps, 3) for g in gt_frame_idx],
+            }
         with open(vid_out / 'boundaries.json', 'w') as f:
             json.dump(result, f, indent=2)
 
