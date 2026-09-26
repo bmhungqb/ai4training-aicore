@@ -23,8 +23,8 @@ Brief summary of the primary failure modes identified by Evaluator:
 - **Domain**: `[Data Quality / Class Imbalance / Model Capacity / Optimization / Label Noise / Domain Shift / Feature Representation]`
 - **Confidence Level**: `[High | Medium | Low]` ({{CONFIDENCE_SCORE}}%)
 - **Supporting Evidence**:
-  - Evidence A: {{SUPPORTING_EVIDENCE_A}} (Ref: `01_eval_report.md#section`)
-  - Evidence B: {{SUPPORTING_EVIDENCE_B}}
+  - *Training Dynamics Evidence (Pillar 1)*: {{TRAINING_LOG_EVIDENCE}} (e.g. loss trajectory, plateau, LR saturation, overfitting divergence)
+  - *Visual Frame Evidence (Pillar 2)*: {{VISUAL_FRAME_EVIDENCE}} (e.g. inspection of `error_cases/*.jpg`, subtle hand motion, fabric occlusion, ambiguous transition)
 - **Contradicting Evidence**:
   - Contradiction A: {{CONTRADICTING_EVIDENCE_A}} (or "None observed")
 - **What Evidence Is Still Missing**:
@@ -38,7 +38,8 @@ Brief summary of the primary failure modes identified by Evaluator:
 - **Domain**: `[Data Quality / Class Imbalance / Model Capacity / Optimization / Label Noise / Domain Shift / Feature Representation]`
 - **Confidence Level**: `[High | Medium | Low]` ({{CONFIDENCE_SCORE}}%)
 - **Supporting Evidence**:
-  - Evidence A: {{SUPPORTING_EVIDENCE_A}}
+  - *Training Dynamics Evidence (Pillar 1)*: {{TRAINING_LOG_EVIDENCE}}
+  - *Visual Frame Evidence (Pillar 2)*: {{VISUAL_FRAME_EVIDENCE}}
 - **Contradicting Evidence**:
   - Contradiction A: {{CONTRADICTING_EVIDENCE_A}}
 - **What Evidence Is Still Missing**:
@@ -52,7 +53,8 @@ Brief summary of the primary failure modes identified by Evaluator:
 - **Domain**: `[Data Quality / Class Imbalance / Model Capacity / Optimization / Label Noise / Domain Shift / Feature Representation]`
 - **Confidence Level**: `[High | Medium | Low]` ({{CONFIDENCE_SCORE}}%)
 - **Supporting Evidence**:
-  - Evidence A: {{SUPPORTING_EVIDENCE_A}}
+  - *Training Dynamics Evidence (Pillar 1)*: {{TRAINING_LOG_EVIDENCE}}
+  - *Visual Frame Evidence (Pillar 2)*: {{VISUAL_FRAME_EVIDENCE}}
 - **Contradicting Evidence**:
   - Contradiction A: {{CONTRADICTING_EVIDENCE_A}}
 - **What Evidence Is Still Missing**:
