@@ -7,6 +7,12 @@ Project documentation is structured into **single-source-of-truth trackers** per
 
 ---
 
+## Research System
+
+- [**AI Research Experiment Loop**](AI_RESEARCH_LOOP.md): Architecture, roles (Evaluator, Diagnoser, Researcher, Debate, Implementor), directory layout, and Agent Skills protocol for iterative human-in-the-loop experiments.
+
+---
+
 ## Directory Index
 
 ### 1. Step Segmentation (`docs/step_segment/`)

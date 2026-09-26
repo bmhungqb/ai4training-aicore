@@ -15,5 +15,11 @@ data_old/
 data_sp1/
 data_result/
 ddm_dataset/
+outputs/
+runs/
+*.ckpt
+*.pt
+*.pth
 /tmp
+
 

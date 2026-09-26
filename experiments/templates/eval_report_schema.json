@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EvaluatorStructuredReport",
+  "type": "object",
+  "required": [
+    "track",
+    "iteration_id",
+    "evaluation_timestamp",
+    "primary_metrics",
+    "per_class_or_case_performance",
+    "error_cases",
+    "factual_observations"
+  ],
+  "properties": {
+    "track": { "type": "string" },
+    "iteration_id": { "type": "string" },
+    "parent_experiment_id": { "type": "string" },
+    "evaluation_timestamp": { "type": "string", "format": "date-time" },
+    "evaluation_dataset": { "type": "string" },
+    "primary_metrics": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "tolerance_windows": {
+      "type": "array",
+      "items": { "type": "number" }
+    },
+    "per_class_or_case_performance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "metrics"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "sample_count": { "type": "integer" },
+          "metrics": { "type": "object" }
+        }
+      }
+    },
+    "error_cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["case_id", "category", "description", "evidence_reference"],
+        "properties": {
+          "case_id": { "type": "string" },
+          "category": { "type": "string", "enum": ["false_positive", "false_negative", "timing_drift", "classification_error", "other"] },
+          "description": { "type": "string" },
+          "evidence_reference": { "type": "string" },
+          "metrics_impact": { "type": "string" }
+        }
+      }
+    },
+    "factual_observations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Evidence-only statements. Absolutely NO root causes or solution conjectures."
+    }
+  }
+}

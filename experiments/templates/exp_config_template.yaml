@@ -1,0 +1,19 @@
+experiment_id: exp_001_example
+track: action_segment
+iteration_id: iter_01
+parent_baseline_id: iter_00_baseline
+
+description: "Description of what hypothesis this experiment isolates and tests"
+
+# Parameters being tested / modified
+params:
+  dist_sec: 0.45
+  k_std: 1.0
+  min_th: 0.20
+  wrist_resting_filter: true
+
+# Evaluation setup
+eval:
+  tolerance_window: 0.5
+  dataset_path: "data"
+  chuyen_list: ["cd1", "cd2", "cd3"]
