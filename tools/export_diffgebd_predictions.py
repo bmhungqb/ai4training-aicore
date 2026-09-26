@@ -149,12 +149,18 @@ def plot_scores(vid, frame_idx, scores, fps, threshold, gt_frame_idx, out_path):
 def render_annotated_video(frame_dir, vlen, fps, pred_frame_idx, gt_frame_idx, out_path, freeze_s=5.0, gt_match_tol_s=0.5):
     import cv2
     from tqdm import tqdm
-    first = cv2.imread(str(frame_dir / "frame000001.jpg"))
-    if first is None:
-        first = cv2.imread(str(frame_dir / "img_00001.jpg"))
+    # We will try both naming formats
+    fmt = "frame{:06d}.jpg"
+    if not (frame_dir / fmt.format(1)).exists():
+        fmt = "img_{:05d}.jpg"
+    if not (frame_dir / fmt.format(1)).exists():
+        fmt = "frame{}.jpg"
+
+    first = cv2.imread(str(frame_dir / fmt.format(1)))
     if first is None:
         print(f"Could not read frames in {frame_dir}, skipping video render.")
         return
+        
     h, w = first.shape[:2]
     writer = cv2.VideoWriter(str(out_path), cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
 
@@ -163,11 +169,6 @@ def render_annotated_video(frame_dir, vlen, fps, pred_frame_idx, gt_frame_idx, o
     pred_sorted = sorted(int(p) for p in pred_frame_idx)
     gt_sorted = sorted(int(g) for g in gt_frame_idx) if gt_frame_idx else []
     next_boundary = 0
-    
-    # We will try both naming formats
-    fmt = "frame{:06d}.jpg"
-    if not (frame_dir / fmt.format(1)).exists():
-        fmt = "img_{:05d}.jpg"
 
     for i in tqdm(range(1, int(vlen) + 1), desc=f"rendering {out_path.name}"):
         frame = cv2.imread(str(frame_dir / fmt.format(i)))
