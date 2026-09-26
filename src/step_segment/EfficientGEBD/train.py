@@ -600,6 +600,7 @@ def main(cfg, args):
         if is_main_process():
             f1 = metrics_list['F1'] if cfg.TEST.DYNAMIC else metrics_list[-1]['F1']
             save_path = os.path.join(output_dir, 'model_best.pth')
+            saved_this_epoch = False
             if f1 > best_f1:
                 model_state_dict = model.module.state_dict() if isinstance(model, DistributedDataParallel) else model.state_dict()
                 # save_path = os.path.join(output_dir, 'model_best.pth')
@@ -611,6 +612,7 @@ def main(cfg, args):
                     'metrics': metrics_list
                 }, save_path)
                 best_f1 = f1
+                saved_this_epoch = True
             with open(os.path.join(output_dir, 'metrics.txt'), 'a') as f:
                 if cfg.TEST.DYNAMIC:
                     content = 'Dynamic inference, F1: {:.4f}, Rec: {:.4f}, Prec: {:.4f}'.format(
@@ -621,7 +623,10 @@ def main(cfg, args):
                                 .format(head+1, metrics_list[i]['F1'], metrics_list[i]['Rec'], metrics_list[i]['Prec']) \
                                     for i, head in enumerate(cfg.MODEL.HEAD_CHOICE)]) + '\n'
                 f.write(content)
-            print('Saved to {}'.format(save_path))
+            if saved_this_epoch:
+                print('Saved to {}'.format(save_path))
+            else:
+                print('F1 {:.4f} did not improve over best {:.4f}, not saving.'.format(f1, best_f1))
 
 
 def init_seeds(seed, cuda_deterministic=True):
