@@ -8,8 +8,10 @@ and visualize the predicted step-boundary scores/timestamps:
   - <out>/<vid>/score_curve.png   score-vs-time curve with predicted (red) /
                                   GT (green, if --gt given) boundary markers
   - <out>/<vid>/boundaries.json   predicted (+ GT) boundary frame idx / timestamps
-  - <out>/<vid>/annotated.mp4     original video with a flashing red border +
-                                  label at each predicted boundary (skip with --no-video)
+  - <out>/<vid>/annotated.mp4     original video played normally; at each predicted
+                                  boundary it freezes on that frame (red border +
+                                  'STEP BOUNDARY' label, ~5s by default via
+                                  --freeze-seconds) before continuing (skip with --no-video)
 
 Examples:
     # a brand new video, no ground truth
@@ -193,8 +195,11 @@ def plot_scores(vid, frame_idx, scores_per_head, fps, pred_by_head, gt_frame_idx
     plt.close(fig)
 
 
-def render_annotated_video(frame_dir, vlen, fps, pred_frame_idx, gt_frame_idx, out_path, tol_s=0.3):
-    tol_frames = max(1, int(round(tol_s * fps)))
+def render_annotated_video(frame_dir, vlen, fps, pred_frame_idx, gt_frame_idx, out_path,
+                            freeze_s=5.0, gt_match_tol_s=0.5):
+    """Play the video normally, and at each predicted boundary freeze on that frame
+    (with a red border + label) for `freeze_s` seconds before resuming playback.
+    """
     first = cv2.imread(str(frame_dir / TEMPLATE.format(1)))
     if first is None:
         print(f'Could not read frames in {frame_dir}, skipping video render.')
@@ -202,19 +207,32 @@ def render_annotated_video(frame_dir, vlen, fps, pred_frame_idx, gt_frame_idx, o
     h, w = first.shape[:2]
     writer = cv2.VideoWriter(str(out_path), cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
 
+    freeze_frames = max(1, int(round(freeze_s * fps)))
+    gt_match_tol_frames = max(1, int(round(gt_match_tol_s * fps)))
+    pred_sorted = sorted(int(p) for p in pred_frame_idx)
+    gt_sorted = sorted(int(g) for g in gt_frame_idx) if gt_frame_idx else []
+    next_boundary = 0
+
     for i in tqdm(range(1, vlen + 1), desc=f'rendering {out_path.parent.name}/{out_path.name}'):
         frame = cv2.imread(str(frame_dir / TEMPLATE.format(i)))
         if frame is None:
             continue
-        near_pred = any(abs(i - p) <= tol_frames for p in pred_frame_idx)
-        near_gt = gt_frame_idx is not None and any(abs(i - g) <= tol_frames for g in gt_frame_idx)
-        if near_pred:
-            cv2.rectangle(frame, (0, 0), (w - 1, h - 1), (0, 0, 255), 8)
-            cv2.putText(frame, 'PRED BOUNDARY', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
-        if near_gt:
-            cv2.putText(frame, 'GT BOUNDARY', (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
         cv2.putText(frame, f't={(i - 1) / fps:.2f}s', (20, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         writer.write(frame)
+
+        if next_boundary < len(pred_sorted) and i >= pred_sorted[next_boundary]:
+            boundary_idx = pred_sorted[next_boundary]
+            next_boundary += 1
+            freeze_frame = frame.copy()
+            cv2.rectangle(freeze_frame, (0, 0), (w - 1, h - 1), (0, 0, 255), 10)
+            cv2.putText(freeze_frame, 'STEP BOUNDARY', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 0, 255), 3)
+            if gt_sorted:
+                matched = any(abs(boundary_idx - g) <= gt_match_tol_frames for g in gt_sorted)
+                label = 'matches GT' if matched else 'no GT match nearby'
+                color = (0, 255, 0) if matched else (0, 165, 255)
+                cv2.putText(freeze_frame, label, (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+            for _ in range(freeze_frames):
+                writer.write(freeze_frame)
     writer.release()
 
 
@@ -233,6 +251,8 @@ def main():
     parser.add_argument('--fps', type=float, default=None, help='fallback fps if not known/in --gt (default 25.0)')
     parser.add_argument('--batch-size', type=int, default=4, help='number of 10s slices per forward pass')
     parser.add_argument('--no-video', action='store_true', help='skip annotated.mp4 (plot + json still produced)')
+    parser.add_argument('--freeze-seconds', type=float, default=5.0,
+                         help='freeze the video on each predicted boundary frame for this many seconds before continuing')
     parser.add_argument('--overwrite-cache', action='store_true', help='re-extract frames even if cached')
     parser.add_argument('--device', default=None)
     parser.add_argument('opts', nargs=argparse.REMAINDER)
@@ -358,7 +378,7 @@ def main():
 
         if not args.no_video:
             render_annotated_video(frame_dir, vlen, fps, pred_by_head[num_heads - 1], gt_frame_idx,
-                                    vid_out / 'annotated.mp4')
+                                    vid_out / 'annotated.mp4', freeze_s=args.freeze_seconds)
 
         print(f'[{vid}] saved -> {vid_out}')
 
