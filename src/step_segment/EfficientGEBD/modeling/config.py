@@ -77,5 +77,7 @@ _C.TEST.IGNORE = 5
 _C.TEST.PAD_IGNORE = 5
 _C.TEST.PRED_FILE = ''  # precomputed predictions
 _C.TEST.RELDIS_THRESHOLD = 0.05
+_C.TEST.MIN_PEAK_DIST = 1  # min frame gap between two reported boundaries inside one
+                           # above-threshold run (recall/precision tradeoff, see eval.py)
 
 _C.OUTPUT_DIR = 'output'

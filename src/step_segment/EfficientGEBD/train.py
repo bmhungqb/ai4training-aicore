@@ -439,7 +439,8 @@ def validate_end_to_end(cfg, args, model, device, data_loader, epoch):
                                             num_heads=num_heads,
                                             threshold=cfg.TEST.THRESHOLD,
                                             return_pred_dict=True,
-                                            rel_dis_thres=rel_dis_thres)
+                                            rel_dis_thres=rel_dis_thres,
+                                            min_peak_dist=cfg.TEST.MIN_PEAK_DIST)
         
         save_path = os.path.join(args.output_dir, f'exit_dict_epoch{epoch:02d}.pkl')
         with open(save_path, 'wb') as f:
@@ -454,7 +455,8 @@ def validate_end_to_end(cfg, args, model, device, data_loader, epoch):
             abs_results = eval_f1_absolute_tol(model_pred_dict, gt_path,
                                                 num_heads=num_heads,
                                                 threshold=cfg.TEST.THRESHOLD,
-                                                abs_tol_list=abs_tol_list)
+                                                abs_tol_list=abs_tol_list,
+                                                min_peak_dist=cfg.TEST.MIN_PEAK_DIST)
             for head in range(num_heads):
                 abs_tabulate_data = [
                     ['Recall'] + [abs_results[t][head][1] for t in abs_tol_list],

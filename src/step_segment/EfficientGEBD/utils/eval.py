@@ -188,7 +188,7 @@ def do_eval_absolute_tol(gt_dict, pred_dict, head=None, abs_tol_s=0.5):
     return f1, rec, prec
 
 
-def eval_f1_absolute_tol(my_pred, gt_path, num_heads=1, threshold=0.5, abs_tol_list=(0.3, 0.5, 1.0, 2.0)):
+def eval_f1_absolute_tol(my_pred, gt_path, num_heads=1, threshold=0.5, abs_tol_list=(0.3, 0.5, 1.0, 2.0), min_peak_dist=1):
     # Same detection extraction as `eval_f1`, but scored with `do_eval_absolute_tol`
     # (fixed second-based tolerance) instead of a relative-to-video-length threshold.
     with open(gt_path, 'rb') as f:
@@ -201,7 +201,8 @@ def eval_f1_absolute_tol(my_pred, gt_path, num_heads=1, threshold=0.5, abs_tol_l
             for head in range(num_heads):
                 det_t, _ = get_idx_from_score_by_threshold(threshold=threshold,
                                                             seq_indices=my_pred[vid]['frame_idx'],
-                                                            seq_scores=my_pred[vid]['scores'][head])
+                                                            seq_scores=my_pred[vid]['scores'][head],
+                                                            min_peak_dist=min_peak_dist)
                 predictions.append(det_t)
             pred_dict[vid] = predictions
 
@@ -216,7 +217,51 @@ def eval_f1_absolute_tol(my_pred, gt_path, num_heads=1, threshold=0.5, abs_tol_l
     return results
 
 
-def get_idx_from_score_by_threshold(threshold=0.5, seq_indices=None, seq_scores=None):
+def _split_peaks_in_segment(scores, min_peak_dist=1):
+    """Given the scores of one contiguous above-threshold run, return the local
+    indices (within this run) of its distinct peaks.
+
+    Previously a whole run of consecutive above-threshold frames collapsed into
+    a single boundary (the run's center). For densely-annotated videos (e.g.
+    sewing steps close together) two real, nearby boundaries can share one
+    above-threshold run, so only one was ever reported -> recall loss. Here we
+    instead emit one boundary per local maximum inside the run, merging peaks
+    that are closer than `min_peak_dist` frames apart (keeping the higher one)
+    to avoid splitting on score noise.
+    """
+    n = len(scores)
+    if n <= 2:
+        return [int(np.argmax(scores))]
+
+    peaks = [i for i in range(n)
+             if (i == 0 or scores[i] >= scores[i - 1])
+             and (i == n - 1 or scores[i] >= scores[i + 1])]
+
+    # collapse adjacent/plateau duplicates first (keep the middle of each run)
+    merged = []
+    run = [peaks[0]]
+    for p in peaks[1:]:
+        if p - run[-1] <= 1:
+            run.append(p)
+        else:
+            merged.append(run)
+            run = [p]
+    merged.append(run)
+    peaks = [int(round(np.mean(r))) for r in merged]
+
+    # enforce a minimum distance between reported peaks, keeping the stronger one
+    if min_peak_dist > 1 and len(peaks) > 1:
+        peaks = sorted(peaks, key=lambda i: -scores[i])
+        kept = []
+        for p in peaks:
+            if all(abs(p - k) >= min_peak_dist for k in kept):
+                kept.append(p)
+        peaks = sorted(kept)
+
+    return peaks
+
+
+def get_idx_from_score_by_threshold(threshold=0.5, seq_indices=None, seq_scores=None, min_peak_dist=1):
     seq_indices = np.array(seq_indices)
     seq_scores = np.array(seq_scores)
     bdy_indices = []
@@ -235,8 +280,9 @@ def get_idx_from_score_by_threshold(threshold=0.5, seq_indices=None, seq_scores=
     exit_indices = []
     if len(bdy_indices) != 0:
         for internals in bdy_indices:
-            center = round(np.mean(internals))
-            bdy_indices_in_video.append(seq_indices[center])
+            local_peaks = _split_peaks_in_segment(seq_scores[internals], min_peak_dist=min_peak_dist)
+            for lp in local_peaks:
+                bdy_indices_in_video.append(seq_indices[internals[lp]])
             for inter in internals:
                 exit_indices.append(seq_indices[inter])
     return bdy_indices_in_video, exit_indices
@@ -297,7 +343,7 @@ def early_exit_by_threshold(seq_scores, thh, thl, ignore=5, pad_ignore=2):
     return bdy_indices_in_video, exit_idx, psu_exit_idx
 
 
-def eval_f1(my_pred, gt_path, num_heads=1, threshold=0.5, return_pred_dict=False, rel_dis_thres=0.05):
+def eval_f1(my_pred, gt_path, num_heads=1, threshold=0.5, return_pred_dict=False, rel_dis_thres=0.05, min_peak_dist=1):
     with open(gt_path, 'rb') as f:
         gt_dict = pickle.load(f, encoding='lartin1')
 
@@ -310,7 +356,8 @@ def eval_f1(my_pred, gt_path, num_heads=1, threshold=0.5, return_pred_dict=False
             for head in range(num_heads):
                 det_t, exit_t = get_idx_from_score_by_threshold(threshold=threshold,
                                                             seq_indices=my_pred[vid]['frame_idx'],
-                                                            seq_scores=my_pred[vid]['scores'][head])
+                                                            seq_scores=my_pred[vid]['scores'][head],
+                                                            min_peak_dist=min_peak_dist)
                 assert np.all(np.array(det_t) >= 0)
                 predictions.append(det_t)
                 exit_perdictions.append(exit_t)

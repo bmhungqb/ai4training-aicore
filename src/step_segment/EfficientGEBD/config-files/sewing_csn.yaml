@@ -48,10 +48,11 @@ SOLVER:
   CLIP_GRAD: 0.0
   NUM_WORKERS: 8
   OPTIMIZER: 'SGD'
-  SIGMA: 1
-  POS_WEIGHT: 4.5    # counter class imbalance (only ~18% of frames are near a boundary)
+  SIGMA: 1.5         # widened from 1: wider positive window around each boundary -> higher recall
+  POS_WEIGHT: 7.0    # raised from 4.5: penalize missed boundaries (FN) harder -> higher recall
 TEST:
-  THRESHOLD: 0.3
+  THRESHOLD: 0.2     # lowered from 0.3: more frames counted as boundary -> higher recall
+  MIN_PEAK_DIST: 5   # split nearby boundaries within one above-threshold run instead of merging them
   DYNAMIC: False
   THH: [0.35, 0.35, 0.35]
   THL: [0.0, 0.0, 0.0]
