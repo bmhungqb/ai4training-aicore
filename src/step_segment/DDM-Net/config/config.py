@@ -261,7 +261,10 @@ def get_parser():
 
     parser.add_argument('--output', default=argparse.SUPPRESS, type=str, 
                         help=f'Output dir (default: {t_cfg.output})')
+    parser.add_argument('--output-dir', default=argparse.SUPPRESS, type=str, 
+                        help='Explicit output directory override for AI Research Loop')
     parser.add_argument('--exp-name', type=str, default=argparse.SUPPRESS, 
+
                         help=f'Experiment name (default: {t_cfg.exp_name})')
     parser.add_argument('--resume', type=str, default=argparse.SUPPRESS, 
                         help=f'Resume path (default: {t_cfg.resume})')

@@ -382,6 +382,45 @@ def main():
 
         print(f'[{vid}] saved -> {vid_out}')
 
+    # AI Research Loop: Save aggregated predictions.json
+    combined_preds = {}
+    for vid, meta in video_meta.items():
+        if vid in pred_by_vid:
+            final_head_preds = pred_by_vid[vid][num_heads - 1]
+            fps = meta['fps']
+            combined_preds[vid] = [round((int(p) - 1) / fps, 3) for p in final_head_preds]
+
+    preds_file = output_dir / 'predictions.json'
+    with open(preds_file, 'w', encoding='utf-8') as pf:
+        json.dump(combined_preds, pf, indent=2)
+    print(f'Aggregated predictions saved to {preds_file}')
+
+    # Also save efficient_gebd_preds.json for legacy benchmark script
+    with open(output_dir / 'efficient_gebd_preds.json', 'w', encoding='utf-8') as pf:
+        json.dump(combined_preds, pf, indent=2)
+
+    # Standardized evaluation against GT
+    try:
+        import sys
+        repo_root = Path(__file__).resolve().parents[3]
+        if str(repo_root) not in sys.path:
+            sys.path.insert(0, str(repo_root))
+        from tools.eval_step_segment_predictions import load_ground_truth, evaluate_predictions
+        gt = load_ground_truth(repo_root / "data")
+        eval_gt = {k: v for k, v in gt.items() if k in combined_preds} or gt
+        metrics_report = evaluate_predictions(eval_gt, combined_preds, thresholds=[0.25, 0.5, 1.0], primary_window=0.5)
+        metrics_report["model"] = "EfficientGEBD"
+        metrics_report["checkpoint"] = str(args.checkpoint)
+        metrics_file = output_dir / "metrics.json"
+        with open(metrics_file, "w", encoding="utf-8") as mf:
+            json.dump(metrics_report, mf, indent=2)
+        print(f"Standardized metrics report -> {metrics_file}")
+        macro_f1 = metrics_report["primary_metrics"].get("macro_f1", 0.0)
+        print(f"EfficientGEBD Macro F1@0.5s: {macro_f1:.4f}")
+    except Exception as e:
+        print(f"Notice: Standardized evaluation skipped: {e}")
+
 
 if __name__ == '__main__':
     main()
+

@@ -1,0 +1,18 @@
+experiment_id: exp_003_ddm_net_baseline
+track: step_segment
+iteration_id: iter_01
+model_type: ddm_net
+
+description: "DDM-Net baseline with weighted aux heads (main + 0.3 * aux) and leak-free validation"
+
+model_params:
+  backbone: resnet50
+
+training_params:
+  epochs: 30
+  learning_rate: 0.0001
+  aux_loss_weight: 0.3
+
+eval_params:
+  primary_window: 0.5
+  tolerance_windows: [0.25, 0.5, 1.0]

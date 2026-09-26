@@ -302,8 +302,29 @@ def main() -> None:
 
     preds_path = args.out_dir / "diffgebd_preds.json"
     preds_path.write_text(json.dumps(preds_json, indent=2))
-    print(f"Wrote {len(preds_json)} video predictions -> {preds_path}")
+    
+    # Standardized output for AI Research Loop
+    std_preds_path = args.out_dir / "predictions.json"
+    std_preds_path.write_text(json.dumps(preds_json, indent=2))
+    print(f"Wrote {len(preds_json)} video predictions -> {preds_path} and {std_preds_path}")
     print(f"Per-video step_segments_pred.json written under {args.out_dir}/<video_id>/")
+
+    # Run standardized evaluation against ground truth
+    try:
+        from tools.eval_step_segment_predictions import load_ground_truth, evaluate_predictions
+        repo_root = Path(__file__).resolve().parent.parent
+        gt = load_ground_truth(repo_root / "data")
+        eval_gt = {k: v for k, v in gt.items() if k in preds_json} or gt
+        metrics_report = evaluate_predictions(eval_gt, preds_json, thresholds=[0.25, 0.5, 1.0], primary_window=0.5)
+        metrics_report["model"] = "DiffGEBD"
+        metrics_path = args.out_dir / "metrics.json"
+        metrics_path.write_text(json.dumps(metrics_report, indent=2), encoding="utf-8")
+        print(f"Standardized metrics report -> {metrics_path}")
+        macro_f1 = metrics_report["primary_metrics"].get("macro_f1", 0.0)
+        print(f"DiffGEBD Macro F1@0.5s: {macro_f1:.4f}")
+    except Exception as e:
+        print(f"Notice: Standardized evaluation skipped: {e}")
+
 
 
 if __name__ == "__main__":

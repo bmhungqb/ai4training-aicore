@@ -311,6 +311,7 @@ class SOPLightningModule(L.LightningModule):
                 if hasattr(self.trainer, 'datamodule') and hasattr(self.trainer.datamodule, 'val_dataset'):
                     dataset = self.trainer.datamodule.val_dataset
                     nms_result = self._prepare_nms_result(all_predictions, dataset, val_anno)
+                    self.last_nms_result = nms_result
                     gt_dict = self._prepare_gt_dict(dataset, val_anno)
 
                     # Calculate F1 score
@@ -695,7 +696,10 @@ def main():
     L.seed_everything(train_cfg['seed'], workers=True)
 
     # Create output directory
-    output_dir = os.path.join(train_cfg['output'], "train", train_cfg['exp_name'])
+    if train_cfg.get('output_dir'):
+        output_dir = train_cfg['output_dir']
+    else:
+        output_dir = os.path.join(train_cfg['output'], "train", train_cfg['exp_name'])
     os.makedirs(output_dir, exist_ok=True)
 
     # Save complete config to output directory
@@ -845,6 +849,40 @@ def main():
         best_score = getattr(checkpoint_callback, 'best_model_score', None)
         if best_score is not None:
             print(f"Best {train_cfg['eval_metric']}: {best_score:.4f}")
+
+        # Standardize for AI Research Loop
+        if checkpoint_callback and checkpoint_callback.best_model_path:
+            import shutil
+            best_dst = os.path.join(output_dir, "best_model.ckpt")
+            try:
+                shutil.copyfile(checkpoint_callback.best_model_path, best_dst)
+                print(f"Standardized checkpoint -> {best_dst}")
+            except Exception as e:
+                print(f"Warning: Could not copy best checkpoint: {e}")
+
+        # Export predictions.json and metrics.json if available
+        if hasattr(model, 'last_nms_result') and model.last_nms_result:
+            pred_file = os.path.join(output_dir, "predictions.json")
+            with open(pred_file, "w", encoding="utf-8") as pf:
+                json.dump(model.last_nms_result, pf, indent=2)
+            print(f"Standardized predictions -> {pred_file}")
+
+            try:
+                from pathlib import Path
+                repo_root = Path(__file__).resolve().parents[3]
+                sys.path.insert(0, str(repo_root))
+                from tools.eval_step_segment_predictions import load_ground_truth, evaluate_predictions
+                gt = load_ground_truth(repo_root / "data")
+                eval_gt = {k: v for k, v in gt.items() if k in model.last_nms_result} or gt
+                metrics_report = evaluate_predictions(eval_gt, model.last_nms_result)
+                metrics_report["model"] = "DDM-Net"
+                metrics_file = os.path.join(output_dir, "metrics.json")
+                with open(metrics_file, "w", encoding="utf-8") as mf:
+                    json.dump(metrics_report, mf, indent=2)
+                print(f"Standardized metrics report -> {metrics_file}")
+            except Exception as e:
+                print(f"Notice: Standardized evaluation skipped: {e}")
+
     print(f"Configuration: {config_save_path}")
     print(f"{'='*60}\n")
 

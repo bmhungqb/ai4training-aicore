@@ -548,8 +548,8 @@ def main(cfg, args):
     #                                                      cfg.MODEL.SIMILARITY_GROUP,
     #                                                      cfg.MODEL.SIMILARITY_FUNC
     #                                                      )
-    exp_name = args.expname
-    output_dir = cfg.OUTPUT_DIR + exp_name
+    exp_name = (args.expname or '').lstrip('/')
+    output_dir = os.path.join(cfg.OUTPUT_DIR, exp_name) if exp_name else cfg.OUTPUT_DIR
     os.makedirs(output_dir, exist_ok=True)
     args.output_dir = output_dir
 

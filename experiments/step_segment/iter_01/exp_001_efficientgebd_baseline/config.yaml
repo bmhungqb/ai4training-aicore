@@ -1,0 +1,21 @@
+experiment_id: exp_001_efficientgebd_baseline
+track: step_segment
+iteration_id: iter_01
+model_type: efficient_gebd
+
+description: "Baseline benchmark of EfficientGEBD (ResNet-50) with 10s temporal slicing and POS_WEIGHT: 4.5"
+
+model_params:
+  backbone: resnet50
+  sequence_length: 100
+
+training_params:
+  epochs: 50
+  learning_rate: 0.0001
+  batch_size: 2
+
+eval_params:
+  primary_window: 0.5
+  tolerance_windows: [0.25, 0.5, 1.0]
+
+efficientgebd_config_file: "src/step_segment/EfficientGEBD/config-files/sewing_resnet50.yaml"
