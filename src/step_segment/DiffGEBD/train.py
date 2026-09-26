@@ -211,10 +211,11 @@ def validate_end_to_end(cfg, args, model, device, data_loader, epoch):
         gt_path = os.path.join('data', f'k400_mr345_{data_loader.dataset.split}_min_change_duration0.3.pkl')
     elif data_loader.dataset.name == 'TAPOS':
         gt_path = os.path.join('data', f'TAPOS_for_GEBD_{data_loader.dataset.split}.pkl')
-    elif data_loader.dataset.name == 'SEWING':
-        gt_path = getattr(data_loader.dataset, 'ann_path', None) or os.path.join('data', 'diff_gebd_dataset', f'{data_loader.dataset.split}_annotation.pkl')
+    elif data_loader.dataset.name in ('SEWING', 'SEWING_CHUNKED'):
+        suffix = '_chunked' if data_loader.dataset.name == 'SEWING_CHUNKED' else ''
+        gt_path = getattr(data_loader.dataset, 'ann_path', None) or os.path.join('data', 'diff_gebd_dataset', f'{data_loader.dataset.split}_annotation{suffix}.pkl')
         if not os.path.exists(gt_path):
-            alt_gt = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'diff_gebd_dataset', f'{data_loader.dataset.split}_annotation.pkl'))
+            alt_gt = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'data', 'diff_gebd_dataset', f'{data_loader.dataset.split}_annotation{suffix}.pkl'))
             if os.path.exists(alt_gt):
                 gt_path = alt_gt
     else:
@@ -359,6 +360,7 @@ def main(cfg, args):
                     
             model_state_dict = model.module.state_dict() if isinstance(model, DistributedDataParallel) else model.state_dict()
             
+            save_path = None
             if results[0.05][0] >= best_f1:
                 best_f1 = results[0.05][0]
                 save_path = os.path.join(output_dir, f'model_best.pth')
@@ -380,7 +382,9 @@ def main(cfg, args):
                 }, save_path)
             with open(os.path.join(output_dir, 'metrics.txt'), 'a') as f:
                 f.write('Epoch: {:02d},Rel@0.05 F1: {:.4f}, Rec: {:.4f}, Prec: {:.4f}\n'.format(epoch, results[0.05][0], results[0.05][1], results[0.05][2]))
-            print('Saved to {}'.format(save_path))
+            
+            if save_path:
+                print('Saved to {}'.format(save_path))
             
 
 
