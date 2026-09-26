@@ -509,6 +509,69 @@ def run_all(vlm_model: str = cfg2e.VLM_MODEL, model: str = cfg2c.MODEL,
                 max_frames_per_call=max_frames_per_call)
 
 
+def dry_run_pipeline(args) -> None:
+    data_dir = Path(args.data_dir or DATA_DIR)
+    result_dir = Path(args.result_dir) if args.result_dir else (Path("data_result") if Path("data_result").exists() else data_dir)
+
+    print("\n" + "=" * 70)
+    print(" [DRY-RUN] ACTION SEGMENTATION PRE-FLIGHT VERIFICATION")
+    print("=" * 70)
+    print(f" Target Phase:         {args.phase}")
+    print(f" Sub-step Filter:      {args.step or 'All sub-steps'}")
+    print(f" Data Directory:       {data_dir}")
+    print(f" Result Directory:     {result_dir}")
+    print(f" Expert VLM Model:     {args.vlm_model}")
+    print(f" Classify/Eval Model:  {args.model}")
+    print("-" * 70)
+
+    # 1. Inputs check
+    print(" [1/3] Inputs & Prerequisites:")
+    if args.phase in ["segment", "all"]:
+        if args.video:
+            vpath = Path(args.video)
+            print(f"   • Target video: {vpath} {'[FOUND]' if vpath.exists() else '[NOT FOUND]'}")
+        elif args.cong_doan:
+            print(f"   • Operation filter: Công đoạn {args.cong_doan} under {data_dir}")
+        elif args.all_data:
+            print(f"   • Batch scan: All operation folders under {data_dir}")
+        else:
+            wpath = data_dir / "worker.mp4"
+            print(f"   • Default worker: {wpath} {'[FOUND]' if wpath.exists() else '[NOT FOUND]'}")
+
+    if args.phase in ["analyze", "all"]:
+        epath = data_dir / "expert.mp4"
+        ejpath = data_dir / "expert.json"
+        print(f"   • Expert video: {epath} {'[FOUND]' if epath.exists() else '[NOT FOUND]'}")
+        print(f"   • Expert manifest: {ejpath} {'[FOUND]' if ejpath.exists() else '[NOT FOUND]'}")
+        import os
+        api_key = os.environ.get("OPENROUTER_API_KEY", "")
+        print(f"   • API Key: {'[CONFIGURED]' if api_key else '[NOT DETECTED in env or .env]'}")
+
+    # 2. Planned Sub-steps
+    print("\n [2/3] Planned Execution Flow:")
+    if args.phase in ["segment", "all"]:
+        print("   1. Phase 1: Kinematic Action Segmentation (SAM3 hand tracking + SEA-RAFT flow)")
+        print(f"      - Output: {data_dir}/kinematic/action_segments.json")
+    if args.phase in ["analyze", "all"]:
+        print("   2. Phase 2 / expert:   Auto reference frame selection & SOP guideline synthesis")
+        print("   3. Phase 2 / classify: Worker action classification against SOP")
+        print("   4. Phase 2 / macro:    Duration ratio & timing deviation analysis (pure code)")
+        print("   5. Phase 2 / micro:    Targeted VLM feedback on slow/off-standard segments")
+
+    # 3. Expected Artifacts
+    print("\n [3/3] Expected Artifacts upon Completion:")
+    print(f"   • {data_dir}/kinematic/action_segments.json")
+    print(f"   • {data_dir}/expert_scenes/selected_frames.json")
+    print(f"   • {data_dir}/worker_segments/worker_segments.json")
+    print(f"   • {data_dir}/macro_eval.json")
+    print(f"   • {data_dir}/micro_eval.json")
+
+    print("\n" + "=" * 70)
+    print(" [DRY-RUN] Pre-flight check completed. No compute or VLM calls were made.")
+    print(" Remove --dry-run flag to start execution.")
+    print("=" * 70 + "\n")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -576,7 +639,13 @@ def main() -> None:
                     help="root folder containing operation folders (default: data)")
     ap.add_argument("--result-dir", default=None,
                     help="root folder for output results (default: data_result if it exists, else same as data-dir)")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="perform preflight checks and preview pipeline steps without executing compute/VLM calls")
     args = ap.parse_args()
+
+    if args.dry_run:
+        dry_run_pipeline(args)
+        return
 
     if args.phase == "segment":
         run_segment(step=args.step, force=args.force_segment, visualize=args.visualize,

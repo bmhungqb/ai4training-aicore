@@ -61,6 +61,11 @@ def parse_args():
         default=1,
         help="Number of GPUs to use",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate config, datasets, and preview commands without running heavy compute",
+    )
     return parser.parse_args()
 
 
@@ -249,6 +254,152 @@ def update_overview_tracker(config: dict, output_dir: Path, metrics_data: dict):
         logger.warning(f"Failed to write to overview tracker: {e}")
 
 
+def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env: dict):
+    exp_id = config.get("experiment_id", "exp_unnamed")
+    model_type = config.get("model_type", "efficient_gebd").lower()
+    iter_id = config.get("iteration_id", "iter_01")
+    model_cfg = config.get("model_params", {})
+    train_cfg = config.get("training_params", {})
+
+    print("\n" + "=" * 70)
+    print(" [DRY-RUN] STEP SEGMENTATION PRE-FLIGHT VERIFICATION")
+    print("=" * 70)
+    print(f" Experiment ID:      {exp_id}")
+    print(f" Model Type:         {model_type}")
+    print(f" Iteration:          {iter_id}")
+    print(f" Mode:               {mode}")
+    print(f" Target GPUs:        {num_gpus}")
+    print(f" Target Output Dir:  {output_dir}")
+    print("-" * 70)
+
+    # 1. Dataset verification
+    print(" [1/3] Dataset Verification:")
+    if model_type in ["ddm_net", "ddm"]:
+        dataset_dir = REPO_ROOT / "data" / "ddm_dataset"
+        train_split = dataset_dir / "train_split.json"
+        val_split = dataset_dir / "val_split.json"
+        if dataset_dir.exists() and train_split.exists() and val_split.exists():
+            print(f"   ✓ Found DDM dataset at: {dataset_dir}")
+            print(f"   ✓ Train split: {train_split.name} | Val split: {val_split.name}")
+        else:
+            print(f"   ✗ DDM dataset missing or incomplete at {dataset_dir}")
+            print(f"     Run: python tools/process_step_segments.py && python tools/prepare_ddm_dataset.py")
+
+    elif model_type in ["diff_gebd", "diffgebd"]:
+        dataset_dir = REPO_ROOT / "data" / "diff_gebd_dataset"
+        chunk_train = dataset_dir / "chunked_train_annotation.json"
+        chunk_val = dataset_dir / "chunked_val_annotation.json"
+        if dataset_dir.exists() and (chunk_train.exists() or (dataset_dir / "train_annotation.json").exists()):
+            print(f"   ✓ Found DiffGEBD dataset at: {dataset_dir}")
+        else:
+            print(f"   ✗ DiffGEBD dataset missing at {dataset_dir}")
+            print(f"     Run: python tools/prepare_diff_gebd_dataset.py && python tools/chunk_diff_gebd_dataset.py")
+
+    elif model_type in ["efficient_gebd", "efficientgebd"]:
+        dataset_dir = REPO_ROOT / "data" / "efficient_gebd_dataset"
+        val_pkl = dataset_dir / "val_annotation.pkl"
+        if dataset_dir.exists() and val_pkl.exists():
+            print(f"   ✓ Found EfficientGEBD dataset at: {dataset_dir}")
+            print(f"   ✓ Found annotation pkl: {val_pkl.name}")
+        else:
+            print(f"   ✗ EfficientGEBD dataset missing at {dataset_dir}")
+            print(f"     Run: python tools/prepare_efficient_gebd_dataset.py")
+
+    # 2. Command Preview
+    print("\n [2/3] Command Preview:")
+    if model_type in ["ddm_net", "ddm"]:
+        ddm_dir = REPO_ROOT / "src" / "step_segment" / "DDM-Net"
+        if mode == "train":
+            cmd = [
+                sys.executable,
+                str(ddm_dir / "train_sop_lightning.py"),
+                "--output-dir", str(output_dir),
+                "--num-gpus", str(num_gpus),
+            ]
+            if "backbone" in model_cfg:
+                cmd.extend(["--backbone", str(model_cfg["backbone"])])
+            if "epochs" in train_cfg:
+                cmd.extend(["--epochs", str(train_cfg["epochs"])])
+            if "learning_rate" in train_cfg:
+                cmd.extend(["--learning-rate", str(train_cfg["learning_rate"])])
+            if "aux_loss_weight" in train_cfg:
+                cmd.extend(["--aux-loss-weight", str(train_cfg["aux_loss_weight"])])
+            print(f"   Working Directory: {ddm_dir}")
+            print(f"   Execution Command: {' '.join(cmd)}")
+        elif mode == "infer":
+            ckpt = config.get("checkpoint") or str(output_dir / "best_model.ckpt")
+            cmd = [
+                sys.executable,
+                str(REPO_ROOT / "tools" / "infer_ddm_net.py"),
+                "--checkpoint", str(ckpt),
+                "--output-dir", str(output_dir),
+            ]
+            print(f"   Execution Command: {' '.join(cmd)}")
+
+    elif model_type in ["diff_gebd", "diffgebd"]:
+        diff_dir = REPO_ROOT / "src" / "step_segment" / "DiffGEBD"
+        config_file = config.get("diffgebd_config_file") or (diff_dir / "config" / "sewing_diffgebd_resnet50_chunked.yaml")
+        if mode == "train":
+            cmd = [
+                "torchrun", f"--nproc_per_node={num_gpus}",
+                "train.py",
+                "--config-file", str(config_file),
+                "OUTPUT_DIR", str(output_dir),
+            ]
+            print(f"   Working Directory: {diff_dir}")
+            print(f"   Execution Command: {' '.join(cmd)}")
+        elif mode == "infer":
+            weights = config.get("checkpoint") or str(output_dir / "model_best.pth")
+            cmd = [
+                sys.executable,
+                str(REPO_ROOT / "tools" / "infer_diffgebd.py"),
+                "--config-file", str(config_file),
+                "--weights", str(weights),
+                "--out-dir", str(output_dir),
+                "--num-gpus", str(num_gpus),
+            ]
+            print(f"   Execution Command: {' '.join(cmd)}")
+
+    elif model_type in ["efficient_gebd", "efficientgebd"]:
+        eff_dir = REPO_ROOT / "src" / "step_segment" / "EfficientGEBD"
+        config_file = config.get("efficientgebd_config_file") or (eff_dir / "config-files" / "sewing_resnet50.yaml")
+        if mode == "train":
+            cmd = [
+                "torchrun", f"--nproc_per_node={num_gpus}",
+                "train.py",
+                "--config-file", str(config_file),
+                "OUTPUT_DIR", str(output_dir),
+            ]
+            print(f"   Working Directory: {eff_dir}")
+            print(f"   Execution Command: {' '.join(cmd)}")
+        elif mode == "infer":
+            weights = config.get("checkpoint") or str(output_dir / "model_best.pth")
+            cmd = [
+                sys.executable,
+                str(eff_dir / "infer.py"),
+                "--config-file", str(config_file),
+                "--checkpoint", str(weights),
+                "--input", str(REPO_ROOT / "data" / "efficient_gebd_dataset" / "images" / "val"),
+                "--gt", str(REPO_ROOT / "data" / "efficient_gebd_dataset" / "val_annotation.pkl"),
+                "--output-dir", str(output_dir),
+            ]
+            print(f"   Execution Command: {' '.join(cmd)}")
+
+    # 3. Expected Artifacts
+    print("\n [3/3] Expected Artifacts upon Completion:")
+    print(f"   • {output_dir / 'run.log'}")
+    print(f"   • {output_dir / 'train.log'}")
+    print(f"   • {output_dir / ('best_model.ckpt' if model_type in ['ddm_net', 'ddm'] else 'model_best.pth')}")
+    print(f"   • {output_dir / 'predictions.json'}")
+    print(f"   • {output_dir / 'metrics.json'}")
+    print(f"   • Auto-updates: experiments/step_segment/step_segment_overview.md")
+
+    print("\n" + "=" * 70)
+    print(" [DRY-RUN] Pre-flight verification completed. No training was executed.")
+    print(" Remove --dry-run flag to start full training run.")
+    print("=" * 70 + "\n")
+
+
 def main():
     args = parse_args()
     with open(args.config, "r", encoding="utf-8") as f:
@@ -260,6 +411,13 @@ def main():
     model_type = config.get("model_type", "efficient_gebd").lower()
 
     output_dir = args.output_dir or (REPO_ROOT / "outputs" / track / model_type / iter_id / exp_id)
+    env = os.environ.copy()
+    env["PYTHONPATH"] = f"{REPO_ROOT}:{env.get('PYTHONPATH', '')}"
+
+    if args.dry_run:
+        dry_run_check(config, output_dir, args.mode, args.num_gpus, env)
+        return
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Setup file logging
