@@ -20,11 +20,19 @@ import time
 from pathlib import Path
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+def find_repo_root(path: Path) -> Path:
+    for parent in [path] + list(path.parents):
+        if (parent / ".git").exists():
+            return parent
+    return path.resolve().parents[2]
+
+
+REPO_ROOT = find_repo_root(Path(__file__).resolve())
 sys.path.insert(0, str(REPO_ROOT))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("step_segment_runner")
+
 
 
 def parse_args():
@@ -179,6 +187,68 @@ def run_efficient_gebd(config: dict, output_dir: Path, mode: str, num_gpus: int,
         subprocess.run(cmd, cwd=str(eff_dir), env=env, check=True)
 
 
+def update_overview_tracker(config: dict, output_dir: Path, metrics_data: dict):
+    tracker_path = REPO_ROOT / "experiments" / "step_segment" / "step_segment_overview.md"
+    if not tracker_path.exists():
+        return
+
+    exp_id = config.get("experiment_id", output_dir.name)
+    model_type = config.get("model_type", "efficient_gebd").lower()
+    model_display = {
+        "ddm_net": "DDM-Net",
+        "diff_gebd": "DiffGEBD",
+        "efficient_gebd": "EfficientGEBD",
+    }.get(model_type, model_type)
+
+    primary = metrics_data.get("primary_metrics", {})
+    f1_05 = primary.get("macro_f1", 0.0) * 100
+    rec_05 = primary.get("macro_recall", 0.0) * 100
+    prec_05 = primary.get("macro_precision", 0.0) * 100
+    f1_025 = primary.get("f1_at_0_25s", 0.0) * 100
+    f1_10 = primary.get("f1_at_1_0s", 0.0) * 100
+
+    now_str = time.strftime("%Y-%m-%d %H:%M")
+    lines = tracker_path.read_text(encoding="utf-8").splitlines()
+    updated = False
+
+    new_lines = []
+    for line in lines:
+        # Check Leaderboard row
+        if f"`{exp_id}`" in line and (line.strip().startswith("| - |") or line.strip().startswith("| 1 |") or line.strip().startswith("| 2 |") or line.strip().startswith("| 3 |")):
+            backbone = config.get("model_params", {}).get("backbone", "ResNet-50")
+            status = "Completed" if f1_05 > 0 else "Evaluated"
+            new_lines.append(f"| - | **{model_display}** | [`{exp_id}`]({model_type}/{config.get('iteration_id', 'iter_01')}/{exp_id}/) | {backbone} | **{f1_05:.2f}%** | {rec_05:.2f}% | {prec_05:.2f}% | {f1_025:.2f}% | {f1_10:.2f}% | {status} |")
+            updated = True
+        # Check Chronological Results Log row
+        elif f"`{exp_id}`" in line and ("Planned" in line or "Completed" in line or "Pending" in line):
+            tested_var = config.get("description", "-")
+            config_rel = f"{model_type}/{config.get('iteration_id', 'iter_01')}/{exp_id}/config.yaml"
+            new_lines.append(f"| {now_str} | `{model_display}` | `{exp_id}` | [config.yaml]({config_rel}) | {tested_var} | **{f1_05:.2f}%** | {rec_05:.2f}% | {prec_05:.2f}% | Completed Run |")
+            updated = True
+        else:
+            new_lines.append(line)
+
+    if not updated:
+        tested_var = config.get("description", "-")
+        config_rel = f"{model_type}/{config.get('iteration_id', 'iter_01')}/{exp_id}/config.yaml"
+        new_row = f"| {now_str} | `{model_display}` | `{exp_id}` | [config.yaml]({config_rel}) | {tested_var} | **{f1_05:.2f}%** | {rec_05:.2f}% | {prec_05:.2f}% | Completed Run |"
+        sec3_idx = -1
+        for idx, line in enumerate(new_lines):
+            if "## 3. Model-Specific Experiment Tracks" in line:
+                sec3_idx = idx
+                break
+        if sec3_idx != -1:
+            new_lines.insert(sec3_idx - 1, new_row)
+        else:
+            new_lines.append(new_row)
+
+    try:
+        tracker_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+        logger.info(f"Updated overview tracker: {tracker_path}")
+    except Exception as e:
+        logger.warning(f"Failed to write to overview tracker: {e}")
+
+
 def main():
     args = parse_args()
     with open(args.config, "r", encoding="utf-8") as f:
@@ -189,7 +259,7 @@ def main():
     iter_id = config.get("iteration_id", "iter_01")
     model_type = config.get("model_type", "efficient_gebd").lower()
 
-    output_dir = args.output_dir or (REPO_ROOT / "outputs" / track / iter_id / exp_id)
+    output_dir = args.output_dir or (REPO_ROOT / "outputs" / track / model_type / iter_id / exp_id)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Setup file logging
@@ -233,6 +303,9 @@ def main():
         logger.info(f" F1 @ 0.25s:       {primary.get('f1_at_0_25s', 0.0) * 100:.2f}%")
         logger.info(f" F1 @ 1.00s:       {primary.get('f1_at_1_0s', 0.0) * 100:.2f}%")
         logger.info("=" * 65)
+
+        # Automatically update central step_segment_overview.md
+        update_overview_tracker(config, output_dir, metrics_data)
     else:
         logger.warning(f"Notice: metrics.json was not generated in {output_dir}")
 
