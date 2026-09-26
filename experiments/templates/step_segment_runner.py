@@ -77,6 +77,7 @@ def parse_args():
 
 def run_ddm_net(config: dict, output_dir: Path, mode: str, num_gpus: int, env: dict):
     ddm_dir = REPO_ROOT / "src" / "step_segment" / "DDM-Net"
+    ensure_data_symlink(ddm_dir)
     model_cfg = config.get("model_params", {})
     train_cfg = config.get("training_params", {})
     ddm_config_file = resolve_config_file(config, "ddm_net_config_file", ddm_dir / "config" / "ddm_train_config.yaml")
