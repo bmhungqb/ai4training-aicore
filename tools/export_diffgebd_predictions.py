@@ -268,11 +268,14 @@ def main() -> None:
         }
         
         gt_frame_idx = None
-        if "gt_margins" in meta:
-            gt_frame_idx = [int(round(t * fps)) + 1 for t in meta["gt_margins"]]
+        if "substages_timestamps" in meta and meta["substages_timestamps"]:
+            # annotations have shape [num_annotators][num_boundaries]
+            # we just use the first annotator's boundaries
+            gt_times = meta["substages_timestamps"][0]
+            gt_frame_idx = [int(round(t * fps)) + 1 for t in gt_times]
             boundaries_json["gt_boundaries"] = {
                 "frame_idx": gt_frame_idx,
-                "time_s": meta["gt_margins"]
+                "time_s": gt_times
             }
             
         (video_out_dir / "boundaries.json").write_text(json.dumps(boundaries_json, indent=2))
