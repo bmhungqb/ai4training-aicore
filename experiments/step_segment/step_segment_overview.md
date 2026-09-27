@@ -61,7 +61,7 @@ Each model maintains its own isolated experiment hierarchy, configs, and output 
 | **Model Type** | Deterministic Temporal Detector | Generative Diffusion (DDIM) | Deterministic Dual-Stream Classifier |
 | **Backbone** | ResNet-50 / Video CSN | ResNet-50 | ResNet-50 / DINOv2 (`dinov2_vitb14`) |
 | **Sampling Mechanism** | 10s slice-based (100 frames/slice) | 12s overlapping chunks (150 frames) | Dense streaming validation (`temporal_stride=1`) |
-| **Loss Formulation** | Weighted BCE (`POS_WEIGHT: 4.5`) | Boundary MSE (`POS_LOSS_WEIGHT: 5.0`) | Re-weighted multi-layer CrossEntropy |
+| **Loss Formulation** | Weighted BCE (`POS_WEIGHT: 4.5`) | Boundary MSE (unweighted) | Re-weighted multi-layer CrossEntropy |
 | **Inference Mechanism** | 1 forward pass + peak thresholding | 16 DDIM reverse-diffusion steps + CFG | 1 forward pass + 1D NMS filter |
 | **Inference Latency** | Ultra fast (~1,200 fps features) | Moderate (16 diffusion passes) | Fast (~340 fps) |
 | **VRAM Consumption** | Low (~4.2 GB) | Medium (~6-8 GB in e2e mode) | Medium (~6.1 GB) |

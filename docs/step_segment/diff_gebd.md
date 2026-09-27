@@ -67,7 +67,7 @@ python tools/export_diffgebd_predictions.py \
 - `DIFFUSION.CFG_SCALE`: Guidance scale (default 7.0; higher = sharper, less noisy boundaries).
 - `DIFFUSION.SAMPLING_TIMESTEPS`: DDIM denoising steps at inference (default 16).
 - `INPUT.SEQUENCE_LENGTH`: Sampled frames per chunk (set to 150 matching ~12s @ 15fps).
-- `MODEL.POS_LOSS_WEIGHT`: Up-weights MSE loss on boundary frames (set to 5.0).
+- `INPUT.GAUS_SIGMA`: Width of the gaussian positive-target bump around each boundary (set to 1.5; wider = more recall, less localization).
 - `MODEL.SYNC_BN`: Must remain `false` for single-GPU training.
 
 ---
@@ -118,5 +118,5 @@ python tools/export_diffgebd_predictions.py \
 | **Backbone** | ResNet-50 / DINOv2 | CSN (R50/R152) / ResNet-50 | ResNet-50 |
 | **Temporal Input** | Sliding window ($\pm 8$ frames) | 10s slice (100 frames) | 12s chunk (150 frames) |
 | **Inference Cost** | 1 forward pass | 1 forward pass | 16 DDIM passes |
-| **Key Tunables** | `frames_per_side`, `aux_loss_weight` | `POS_WEIGHT`, `SIGMA`, threshold | `CFG_SCALE`, `POS_LOSS_WEIGHT`, steps |
+| **Key Tunables** | `frames_per_side`, `aux_loss_weight` | `POS_WEIGHT`, `SIGMA`, threshold | `CFG_SCALE`, `GAUS_SIGMA`, steps |
 | **Primary Config** | `config/ddm_train_config.yaml` | `config-files/sewing_resnet50.yaml` | `config/sewing_diffgebd_resnet50_chunked.yaml` |

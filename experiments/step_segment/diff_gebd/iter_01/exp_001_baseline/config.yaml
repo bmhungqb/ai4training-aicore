@@ -13,7 +13,6 @@ model_params:
 training_params:
   epochs: 100
   learning_rate: 0.00002
-  pos_loss_weight: 5.0
   accum_steps: 8
 
 eval_params:

@@ -3,7 +3,7 @@ track: step_segment
 iteration_id: iter_01
 model_type: diff_gebd
 
-description: "DiffGEBD (ResNet-50) with reduced POS_LOSS_WEIGHT/GAUS_SIGMA to trade some recall back for precision vs exp_001_baseline"
+description: "DiffGEBD (ResNet-50) with reduced GAUS_SIGMA (narrower positive-target bump) and plain (unweighted) MSE loss to trade some recall back for precision vs exp_001_baseline"
 
 model_params:
   backbone: resnet50
@@ -13,14 +13,14 @@ model_params:
 training_params:
   epochs: 100
   learning_rate: 0.00002
-  # exp_001_baseline used pos_loss_weight=5.0 + gaus_sigma=1.5, which
-  # deliberately over-weighted the MSE loss near boundary frames and widened
-  # the positive-target gaussian bump to fix a recall=0.19 sampling-imbalance
-  # bug. That fix overcorrected towards recall. Dialing both back narrows the
-  # model's positive prediction window and reduces the loss emphasis on
-  # boundary frames, which should recover precision without re-introducing
-  # the original near-zero recall.
-  pos_loss_weight: 2.0
+  # exp_001_baseline used gaus_sigma=1.5, which widened the positive-target
+  # gaussian bump to fix a recall=0.19 sampling-imbalance bug, and (in an
+  # earlier revision of this repo) also up-weighted the MSE loss near
+  # boundary frames via MODEL.POS_LOSS_WEIGHT. That combination overcorrected
+  # towards recall. The POS_LOSS_WEIGHT weighting has since been reverted
+  # (back to the method's original, unweighted MSE loss); this experiment
+  # narrows gaus_sigma back down, which alone should recover some precision
+  # without re-introducing the original near-zero recall.
   gaus_sigma: 0.8
   accum_steps: 8
 

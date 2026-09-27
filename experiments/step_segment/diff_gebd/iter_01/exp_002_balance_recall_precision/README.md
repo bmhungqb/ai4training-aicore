@@ -7,26 +7,26 @@
 
 ## Objective
 `exp_001_baseline` prioritizes recall because its underlying config
-(`config/sewing_diffgebd_resnet50_chunked.yaml`) sets two training-time knobs
-that were tuned specifically to fix a prior recall=0.19 sampling bug:
+(`config/sewing_diffgebd_resnet50_chunked.yaml`) sets `INPUT.GAUS_SIGMA: 1.5`,
+tuned to fix a prior recall=0.19 sampling bug: it widens the gaussian
+"positive" bump the model is trained to regress to around each true boundary,
+so the model learns to fire high scores over a wider temporal window (more
+coverage = more recall, less localization = more false positives = lower
+precision).
 
-- `MODEL.POS_LOSS_WEIGHT: 5.0` — up-weights the per-frame MSE loss 5x on
-  boundary frames vs background frames, directly optimizing for recall at the
-  expense of false positives.
-- `INPUT.GAUS_SIGMA: 1.5` — widens the gaussian "positive" bump the model is
-  trained to regress to around each true boundary, so the model learns to
-  fire high scores over a wider temporal window (more coverage = more
-  recall, less localization = more false positives = lower precision).
+(An earlier revision of this repo also added `MODEL.POS_LOSS_WEIGHT: 5.0`,
+up-weighting the per-frame MSE loss 5x on boundary frames, doubling down on
+the recall bias. That weighting has since been reverted — the loss is back
+to the method's original, unweighted `F.mse_loss(logits, loss_targets)`.)
 
-Both were overcorrections. This experiment dials them back down to move the
-operating point back towards precision:
+This experiment dials `GAUS_SIGMA` back down to move the operating point
+back towards precision:
 
 | Knob | exp_001_baseline | exp_002 (this) |
 |---|---|---|
-| `MODEL.POS_LOSS_WEIGHT` | 5.0 | 2.0 |
 | `INPUT.GAUS_SIGMA` | 1.5 | 0.8 |
 
-These are passed as CLI config overrides on top of the same
+This is passed as a CLI config override on top of the same
 `sewing_diffgebd_resnet50_chunked.yaml` base config (see
 `experiments/templates/step_segment_runner.py::run_diff_gebd`), so no new
 DiffGEBD config file is needed and both experiments stay diffable via

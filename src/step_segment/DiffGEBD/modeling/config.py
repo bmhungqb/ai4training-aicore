@@ -23,12 +23,6 @@ _C.MODEL.FPN_START_IDX = 0
 _C.MODEL.HEAD_CHOICE = 1 
 _C.MODEL.NUM_BLOCKS = 3
 _C.MODEL.ENCODER_OUT = False
-# Up-weight the MSE loss at frames close to a boundary (where the Gaussian/
-# binary target is high) relative to background frames. 1.0 = no change
-# (original behavior). Useful when boundary frames are a tiny minority of the
-# sequence (e.g. SEWING_CHUNKED), since plain MSE otherwise mostly optimizes
-# the (much more numerous) background frames -> low recall.
-_C.MODEL.POS_LOSS_WEIGHT = 1.0
 # Dropout inside the DiffDecoder's transformer encoder layers (attention +
 # FFN). Original code hardcoded 0.1; exposed here since small datasets
 # (e.g. SEWING with ~25 source videos) can benefit from more regularization.

@@ -11,8 +11,6 @@
 # so np.linspace(1, vlen, 150) is close to a 1:1 sample instead of a ~40-frame skip.
 #
 # Training-process tuning (see docs/step_segment/diff_gebd.md follow-up):
-#  - MODEL.POS_LOSS_WEIGHT=5.0: up-weights the MSE loss near boundary frames,
-#    which are still a small minority of each chunk -> directly targets recall.
 #  - INPUT.GAUS_SIGMA=1.5 (was 0.8): widens the positive-target bump so more
 #    frames around each boundary get meaningful gradient signal.
 #  - SOLVER.ACCUM_STEPS=8 (effective batch=8) + CLIP_GRAD=1.0: BATCH_SIZE=1 is
@@ -75,7 +73,6 @@ MODEL:
   DROPOUT: 0.2
   NUM_HEADS: 8
   NUM_LAYERS: 6
-  POS_LOSS_WEIGHT: 5.0
   SYNC_BN: false
   WINDOW_SIZE: 17
 OUTPUT_DIR: output/sewing_diffgebd_resnet50_chunked

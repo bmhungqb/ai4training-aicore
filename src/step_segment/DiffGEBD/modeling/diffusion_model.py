@@ -135,7 +135,6 @@ class DiffusionMSE(Module):
         
         self.gaus_sigma = cfg.INPUT.GAUS_SIGMA
         self.only_gaus_target = cfg.INPUT.ONLY_TARGET_GAUS
-        self.pos_loss_weight = cfg.MODEL.POS_LOSS_WEIGHT
         #################################### Diffusion parameters ####################################
         self.cfg_prob = cfg.DIFFUSION.CFG_PROB
         self.cfg_scale = cfg.DIFFUSION.CFG_SCALE
@@ -284,15 +283,7 @@ class DiffusionMSE(Module):
             logits = logits.to(torch.float32)
             loss_targets = loss_targets.to(torch.float32)
 
-            if self.pos_loss_weight != 1.0:
-                # loss_targets is in [-1, 1] (background ~ -1, boundary peak ~ +1);
-                # remap to [0, 1] to use as an up-weighting factor for frames
-                # close to a boundary.
-                boundary_weight = (loss_targets.detach() + 1.0) / 2.0
-                weight = 1.0 + (self.pos_loss_weight - 1.0) * boundary_weight
-                loss = (F.mse_loss(logits, loss_targets, reduction='none') * weight).mean()
-            else:
-                loss = F.mse_loss(logits, loss_targets)
+            loss = F.mse_loss(logits, loss_targets)
 
             if not zero_cond and self.enc_out:
                 cond = einops.rearrange(cond, 't b c -> b c t')
