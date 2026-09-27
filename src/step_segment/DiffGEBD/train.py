@@ -36,8 +36,22 @@ def make_targets(cfg, inputs, device):
     return targets
 
 
-def train_one_epoch(cfg, args, model, device, optimizer, scheduler, data_loader, summary_writer, auto_cast, loss_scaler, epoch):
+def train_one_epoch(cfg, args, model, device, optimizer, scheduler, data_loader, summary_writer, auto_cast, loss_scaler, epoch, nan_streak=0):
     model.train()
+
+    max_consecutive_nan = cfg.SOLVER.MAX_CONSECUTIVE_NAN
+    clip_grad = cfg.SOLVER.CLIP_GRAD if cfg.SOLVER.CLIP_GRAD > 0 else 1e9  # 1e9 == effectively "no clipping", just probe the norm
+
+    def _abort_on_nan_streak(i):
+        raise RuntimeError(
+            f"Aborting: {nan_streak} consecutive non-finite loss/gradient steps at epoch {epoch} step {i}. "
+            "Model weights are very likely permanently NaN/Inf at this point and will not recover on their "
+            "own (every subsequent forward pass will keep producing non-finite loss too). Resume training "
+            "from the last known-good checkpoint (model_last_good.pth or model_best.pth in the output dir) "
+            "with a lower learning rate, e.g.:\n"
+            f"  --resume {os.path.join(args.output_dir, 'model_last_good.pth')} --reset-lr SOLVER.LR <lower_lr>\n"
+            "Also consider lowering SOLVER.CLIP_GRAD further to prevent recurrence."
+        )
 
     start = time.time()
     for i, inputs in enumerate(data_loader):
@@ -52,26 +66,44 @@ def train_one_epoch(cfg, args, model, device, optimizer, scheduler, data_loader,
             total_loss = sum(loss_dict.values())
 
         if not torch.isfinite(total_loss):
+            nan_streak += 1
             if is_main_process():
-                print(f"WARNING: non-finite loss {total_loss} at epoch {epoch} step {i}, skipping optimizer step!", flush=True)
+                print(f"WARNING: non-finite loss {total_loss} at epoch {epoch} step {i}, skipping optimizer step! (consecutive={nan_streak})", flush=True)
             optimizer.zero_grad()
+            if max_consecutive_nan > 0 and nan_streak >= max_consecutive_nan:
+                _abort_on_nan_streak(i)
             continue
 
         optimizer.zero_grad()
         if cfg.SOLVER.AMPE:
             loss_scaler.scale(total_loss).backward()
-            if cfg.SOLVER.CLIP_GRAD > 0:
-                loss_scaler.unscale_(optimizer)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.CLIP_GRAD)
+            loss_scaler.unscale_(optimizer)
+            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad)
+            if not torch.isfinite(grad_norm):
+                nan_streak += 1
+                if is_main_process():
+                    print(f"WARNING: non-finite grad norm {grad_norm} at epoch {epoch} step {i}, skipping optimizer step! (consecutive={nan_streak})", flush=True)
+                loss_scaler.update()  # keep GradScaler's internal scale in sync even though we skip the step ourselves
+                if max_consecutive_nan > 0 and nan_streak >= max_consecutive_nan:
+                    _abort_on_nan_streak(i)
+                continue
             loss_scaler.step(optimizer)
             loss_scaler.update()
             scheduler.step()
         else:
             total_loss.backward()
-            if cfg.SOLVER.CLIP_GRAD > 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.CLIP_GRAD)
+            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad)
+            if not torch.isfinite(grad_norm):
+                nan_streak += 1
+                if is_main_process():
+                    print(f"WARNING: non-finite grad norm {grad_norm} at epoch {epoch} step {i}, skipping optimizer step! (consecutive={nan_streak})", flush=True)
+                if max_consecutive_nan > 0 and nan_streak >= max_consecutive_nan:
+                    _abort_on_nan_streak(i)
+                continue
             optimizer.step()
             scheduler.step()
+
+        nan_streak = 0
 
         if is_main_process():
             summary_writer.global_step += 1
@@ -92,7 +124,9 @@ def train_one_epoch(cfg, args, model, device, optimizer, scheduler, data_loader,
                                                                        str(summary_writer),
                                                                        eta
                                                                        ), flush=True)
-                
+
+    return nan_streak
+
 
 @torch.no_grad()
 def validate(cfg, args, model, device, data_loader, epoch):
@@ -351,9 +385,25 @@ def main(cfg, args):
     early_stop_patience = cfg.SOLVER.EARLY_STOP_PATIENCE
     early_stop_min_delta = cfg.SOLVER.EARLY_STOP_MIN_DELTA
     epochs_no_improve = 0
+    nan_streak = 0
     for epoch in range(start_epoch + 1, cfg.SOLVER.MAX_EPOCHS):
         
-        train_one_epoch(cfg, args, model, device, optimizer, scheduler, train_data_loader, summary_writer, auto_cast, loss_scaler, epoch)
+        nan_streak = train_one_epoch(cfg, args, model, device, optimizer, scheduler, train_data_loader, summary_writer, auto_cast, loss_scaler, epoch, nan_streak)
+
+        if is_main_process() and nan_streak == 0:
+            # Best-effort safety net: only overwrite model_last_good.pth when
+            # the epoch's final step was healthy (finite loss + grad), so a
+            # NaN blow-up never gets saved as "good". This is at most one
+            # epoch stale and is always safe to --resume from, unlike the
+            # potentially-corrupted state torch.save'd right when a NaN
+            # streak hits SOLVER.MAX_CONSECUTIVE_NAN.
+            model_state_dict = model.module.state_dict() if isinstance(model, DistributedDataParallel) else model.state_dict()
+            torch.save({
+                'model': model_state_dict,
+                'epoch': epoch,
+                'optimizer': optimizer.state_dict(),
+                'scheduler': scheduler.state_dict(),
+            }, os.path.join(output_dir, 'model_last_good.pth'))
 
         if len(cfg.DIFFUSION.VALIDATION_TIMESTEPS) == 1 or cfg.DIFFUSION.DETERMINISTIC:
             results = validate(cfg, args, model, device, val_data_loader, epoch)

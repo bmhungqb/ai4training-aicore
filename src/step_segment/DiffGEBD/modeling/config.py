@@ -72,6 +72,15 @@ _C.SOLVER.LR = 1e-2
 # stopping (train for the full MAX_EPOCHS, as before).
 _C.SOLVER.EARLY_STOP_PATIENCE = 0
 _C.SOLVER.EARLY_STOP_MIN_DELTA = 0.0
+# If a step's loss is finite but its post-backward gradient norm is not
+# (inf/nan) -- a common silent AMP fp16-overflow failure mode -- skip that
+# optimizer step too, instead of letting NaN gradients permanently corrupt
+# the model weights. Abort training with a clear error after this many
+# *consecutive* skipped (non-finite loss or grad) steps, since once weights
+# are actually NaN they never recover on their own and every subsequent step
+# will look identical. 0 disables the abort (matches old behavior: skip and
+# keep going forever).
+_C.SOLVER.MAX_CONSECUTIVE_NAN = 50
 _C.SOLVER.MOMENTUM = 0.9
 _C.SOLVER.WEIGHT_DECAY = 1e-4
 _C.SOLVER.CLIP_GRAD = 0.0
