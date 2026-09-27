@@ -1,9 +1,6 @@
 import argparse
-import copy
-import math
 import os
 import pickle
-import sys
 import time
 from collections import defaultdict
 from contextlib import suppress
@@ -39,28 +36,8 @@ def make_targets(cfg, inputs, device):
     return targets
 
 
-@torch.no_grad()
-def update_ema(ema_model, model, decay):
-    """In-place EMA update: ema = decay * ema + (1 - decay) * model."""
-    ema_params = dict(ema_model.named_parameters())
-    for name, param in model.named_parameters():
-        ema_params[name].mul_(decay).add_(param.detach(), alpha=1 - decay)
-    ema_buffers = dict(ema_model.named_buffers())
-    for name, buf in model.named_buffers():
-        ema_buffers[name].copy_(buf)
-
-
-def train_one_epoch(cfg, args, model, device, optimizer, scheduler, data_loader, summary_writer, auto_cast, loss_scaler, epoch, ema_model=None):
+def train_one_epoch(cfg, args, model, device, optimizer, scheduler, data_loader, summary_writer, auto_cast, loss_scaler, epoch):
     model.train()
-
-    # Effective batch size = SOLVER.BATCH_SIZE * SOLVER.ACCUM_STEPS. Useful
-    # when BATCH_SIZE is forced to 1 (END_TO_END + long sequences), where
-    # per-step gradients are otherwise very noisy.
-    accum_steps = max(1, cfg.SOLVER.ACCUM_STEPS)
-    ema_decay = cfg.SOLVER.EMA_DECAY
-    base_model = model.module if isinstance(model, DistributedDataParallel) else model
-    num_batches = len(data_loader)
-    optimizer.zero_grad()
 
     start = time.time()
     for i, inputs in enumerate(data_loader):
@@ -74,31 +51,21 @@ def train_one_epoch(cfg, args, model, device, optimizer, scheduler, data_loader,
             loss_dict = model(samples, targets, masks)
             total_loss = sum(loss_dict.values())
 
-        step_now = ((i + 1) % accum_steps == 0) or (i + 1 == num_batches)
-
+        optimizer.zero_grad()
         if cfg.SOLVER.AMPE:
-            loss_scaler.scale(total_loss / accum_steps).backward()
+            loss_scaler.scale(total_loss).backward()
 
-            if step_now:
-                if cfg.SOLVER.CLIP_GRAD > 0:
-                    loss_scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.CLIP_GRAD)
-                loss_scaler.step(optimizer)
-                loss_scaler.update()
-                optimizer.zero_grad()
-                scheduler.step()
-                if ema_model is not None:
-                    update_ema(ema_model, base_model, ema_decay)
+            if cfg.SOLVER.CLIP_GRAD > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.CLIP_GRAD)
+            loss_scaler.step(optimizer)
+            loss_scaler.update()
+            scheduler.step()
         else:
-            (total_loss / accum_steps).backward()
-            if step_now:
-                if cfg.SOLVER.CLIP_GRAD > 0:
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.CLIP_GRAD)
-                optimizer.step()
-                optimizer.zero_grad()
-                scheduler.step()
-                if ema_model is not None:
-                    update_ema(ema_model, base_model, ema_decay)
+            total_loss.backward()
+            if cfg.SOLVER.CLIP_GRAD > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.CLIP_GRAD)
+            optimizer.step()
+            scheduler.step()
 
         if is_main_process():
             summary_writer.global_step += 1
@@ -306,16 +273,6 @@ def main(cfg, args):
     if is_main_process() and not args.test_only:
         print(model)
 
-    # EMA of model weights: standard practice for diffusion models, since raw
-    # end-of-step weights are noisy and EMA weights sample noticeably better/
-    # more stably. Kept as a plain (unwrapped) copy so it's unaffected by DDP.
-    ema_model = None
-    if cfg.SOLVER.EMA_DECAY > 0:
-        ema_model = copy.deepcopy(model)
-        for p in ema_model.parameters():
-            p.requires_grad_(False)
-        ema_model.eval()
-
     start_epoch = -1
     if args.resume:
         state_dict = torch.load(args.resume, map_location='cpu')
@@ -323,41 +280,15 @@ def main(cfg, args):
         start_epoch = state_dict['epoch']
         if is_main_process():
             print('Loaded from {}, Epoch: {}'.format(args.resume, start_epoch), flush=True)
-        if ema_model is not None:
-            if 'model_ema' in state_dict:
-                ema_model.load_state_dict(state_dict['model_ema'], strict=False)
-            else:
-                ema_model.load_state_dict(state_dict['model'], strict=False)
 
     exp_name = '_ann{}_dim{}_len{}'.format(cfg.INPUT.ANNOTATORS,
                                             cfg.MODEL.DIMENSION,
                                             cfg.INPUT.SEQUENCE_LENGTH,   
                                             )
-    if cfg.OUTPUT_DIR.endswith(os.sep) or cfg.OUTPUT_DIR.endswith(exp_name) or os.path.isabs(cfg.OUTPUT_DIR) or 'outputs' in cfg.OUTPUT_DIR:
-        output_dir = cfg.OUTPUT_DIR
-    else:
-        output_dir = cfg.OUTPUT_DIR + exp_name
+    output_dir = cfg.OUTPUT_DIR + exp_name
     os.makedirs(output_dir, exist_ok=True)
     args.output_dir = output_dir
-
-    if is_main_process():
-        class TeeLogger:
-            def __init__(self, filepath, stream):
-                self.file = open(filepath, "a", encoding="utf-8", buffering=1)
-                self.stream = stream
-            def write(self, data):
-                self.stream.write(data)
-                self.stream.flush()
-                self.file.write(data)
-                self.file.flush()
-            def flush(self):
-                self.stream.flush()
-                self.file.flush()
-
-        train_log_file = os.path.join(output_dir, "train.log")
-        sys.stdout = TeeLogger(train_log_file, sys.stdout)
-        sys.stderr = TeeLogger(train_log_file, sys.stderr)
-
+    
     with open(os.path.join(output_dir,'config.yaml'), 'w') as f:
         f.write(cfg.dump())
 
@@ -366,8 +297,7 @@ def main(cfg, args):
         torch.multiprocessing.set_start_method('spawn')
     
     if args.test_only:
-        eval_model = ema_model if ema_model is not None else model
-        results = validate(cfg, args, eval_model, device, val_data_loader, epoch=-1)
+        results = validate(cfg, args, model, device, val_data_loader, epoch=-1)
         return
     
     optimizer_config = {}
@@ -378,10 +308,7 @@ def main(cfg, args):
     optimizer_config["schedule_steps"] = cfg.SOLVER.MILESTONES
     optimizer_config["gamma"] = cfg.SOLVER.GAMMA
     optimizer = build_optimizer(cfg, [p for p in model.parameters() if p.requires_grad])
-    # scheduler.step() is only called once per SOLVER.ACCUM_STEPS micro-batches
-    # (see train_one_epoch), so its notion of "iterations per epoch" must match.
-    steps_per_epoch = math.ceil(len(train_data_loader) / max(1, cfg.SOLVER.ACCUM_STEPS))
-    scheduler = build_scheduler(optimizer, optimizer_config, steps_per_epoch)
+    scheduler = build_scheduler(optimizer, optimizer_config, len(train_data_loader))
      
     if args.resume:
         for name, obj in [('optimizer', optimizer), ('scheduler', scheduler)]:
@@ -404,14 +331,10 @@ def main(cfg, args):
     best_f1 = 0.
     for epoch in range(start_epoch + 1, cfg.SOLVER.MAX_EPOCHS):
         
-        train_one_epoch(cfg, args, model, device, optimizer, scheduler, train_data_loader, summary_writer, auto_cast, loss_scaler, epoch, ema_model=ema_model)
-
-        # Validate (and select best checkpoint) using the EMA weights when
-        # enabled - that's the model that's actually intended for deployment.
-        eval_model = ema_model if ema_model is not None else model
+        train_one_epoch(cfg, args, model, device, optimizer, scheduler, train_data_loader, summary_writer, auto_cast, loss_scaler, epoch)
 
         if len(cfg.DIFFUSION.VALIDATION_TIMESTEPS) == 1 or cfg.DIFFUSION.DETERMINISTIC:
-            results = validate(cfg, args, eval_model, device, val_data_loader, epoch)
+            results = validate(cfg, args, model, device, val_data_loader, epoch)
 
             if is_main_process():
                 if args.wandb:
@@ -422,7 +345,7 @@ def main(cfg, args):
         else:
             for sampling_steps in cfg.DIFFUSION.VALIDATION_TIMESTEPS:
                 cfg.DIFFUSION.SAMPLING_TIMESTEPS = sampling_steps
-                results = validate(cfg, args, eval_model, device, val_data_loader, epoch)
+                results = validate(cfg, args, model, device, val_data_loader, epoch)
                 if is_main_process():
                     if args.wandb:
                         wandb.log({f'Val_st{sampling_steps}/F1@0.05' : results[0.05][0],
@@ -436,22 +359,27 @@ def main(cfg, args):
                     }, step=epoch)
                     
             model_state_dict = model.module.state_dict() if isinstance(model, DistributedDataParallel) else model.state_dict()
-            checkpoint = {
-                'model': model_state_dict,
-                'epoch': epoch,
-                'optimizer': optimizer.state_dict(),
-                'scheduler': scheduler.state_dict(),
-            }
-            if ema_model is not None:
-                checkpoint['model_ema'] = ema_model.state_dict()
-
+            
             save_path = None
             if results[0.05][0] >= best_f1:
                 best_f1 = results[0.05][0]
-                save_path = os.path.join(output_dir, 'model_best.pth')
-                torch.save(checkpoint, save_path)
-                print(f'Saved best model at epoch {epoch} (F1@0.05: {best_f1:.4f})')
+                save_path = os.path.join(output_dir, f'model_best.pth')
+                torch.save({
+                    'model': model_state_dict,
+                    'epoch': epoch,
+                    'optimizer': optimizer.state_dict(),
+                    'scheduler': scheduler.state_dict(),
+                }, save_path)    
+                print(f'Saved best model at {epoch}')
 
+            if results[0.05][0] >= 0.73:
+                save_path = os.path.join(output_dir, f'model_epoch{epoch:02d}.pth')
+                torch.save({
+                    'model': model_state_dict,
+                    'epoch': epoch,
+                    'optimizer': optimizer.state_dict(),
+                    'scheduler': scheduler.state_dict(),
+                }, save_path)
             with open(os.path.join(output_dir, 'metrics.txt'), 'a') as f:
                 f.write('Epoch: {:02d},Rel@0.05 F1: {:.4f}, Rec: {:.4f}, Prec: {:.4f}\n'.format(epoch, results[0.05][0], results[0.05][1], results[0.05][2]))
             

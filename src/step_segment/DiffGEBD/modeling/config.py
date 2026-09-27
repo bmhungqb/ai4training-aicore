@@ -23,10 +23,6 @@ _C.MODEL.FPN_START_IDX = 0
 _C.MODEL.HEAD_CHOICE = 1 
 _C.MODEL.NUM_BLOCKS = 3
 _C.MODEL.ENCODER_OUT = False
-# Dropout inside the DiffDecoder's transformer encoder layers (attention +
-# FFN). Original code hardcoded 0.1; exposed here since small datasets
-# (e.g. SEWING with ~25 source videos) can benefit from more regularization.
-_C.MODEL.DROPOUT = 0.1
 # -----------------------------------------------------------------------------
 # Dataset
 # -----------------------------------------------------------------------------
@@ -68,17 +64,6 @@ _C.SOLVER.WEIGHT_DECAY = 1e-4
 _C.SOLVER.CLIP_GRAD = 0.0
 _C.SOLVER.NUM_WORKERS = 8
 _C.SOLVER.OPTIMIZER = 'SGD'
-# Number of micro-batches to accumulate before an optimizer/scheduler step.
-# Effective batch size = SOLVER.BATCH_SIZE * SOLVER.ACCUM_STEPS. Useful when
-# BATCH_SIZE is forced to 1 (e.g. END_TO_END with long sequences) and per-step
-# gradients are otherwise very noisy.
-_C.SOLVER.ACCUM_STEPS = 1
-# Exponential Moving Average of model weights (standard practice for
-# diffusion models: EMA weights give much more stable samples than the raw,
-# noisy end-of-training weights). 0.0 = disabled (original behavior).
-# Typical values: 0.999-0.9999. Validation/checkpoint selection uses the EMA
-# weights when enabled.
-_C.SOLVER.EMA_DECAY = 0.0
 # ---------------------------------------------------------------------------- #
 # Diffusion
 # ---------------------------------------------------------------------------- #
@@ -92,12 +77,6 @@ _C.DIFFUSION.SAMPLING_TIMESTEPS = 16
 _C.DIFFUSION.VALIDATION_TIMESTEPS = [0]
 _C.DIFFUSION.DDIM_SAMPLING_ETA = 0.0
 _C.DIFFUSION.SNR_SCALE = 0.5
-# Fixed RNG seed for the DDIM reverse-diffusion starting noise during
-# validation (see ddim_sample). -1 = no seeding (original, noisy) behavior.
-# ddim_sample always draws a fresh `torch.randn` starting point even with
-# DDIM_SAMPLING_ETA=0, so without seeding, val metrics for the *same* weights
-# can swing wildly epoch to epoch, making best-checkpoint selection unreliable.
-_C.DIFFUSION.VAL_SEED = 42
 # ---------------------------------------------------------------------------- #
 # TEST
 # ---------------------------------------------------------------------------- #
