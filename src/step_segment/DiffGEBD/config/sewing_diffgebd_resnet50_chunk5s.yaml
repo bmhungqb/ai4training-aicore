@@ -9,6 +9,13 @@
 #
 # Halving SEQUENCE_LENGTH (150 -> 75) roughly halves VRAM/time (O(T^2) temporal
 # self-attention), so BATCH_SIZE can go from 1 to 2 without OOM.
+#
+# ADAPTIVE_GAUS_SIGMA=true: per-boundary Gaussian target width scales with
+# distance to the nearest neighboring boundary (min_d / GAUS_SIGMA_K, clamped
+# to [GAUS_SIGMA_MIN, GAUS_SIGMA_MAX]) instead of a single fixed GAUS_SIGMA,
+# to better match this dataset's highly variable step durations (~0.4s micro
+# steps up to ~80s long seams). See modeling/diffusion_model.py::
+# prepare_adaptive_gaussian_targets.
 DATASETS:
   TRAIN:
   - SEWING_CHUNKED_train
@@ -35,6 +42,10 @@ INPUT:
   FRAME_PER_SIDE: 5
   GAUSSIAN_TARGET: false
   GAUS_SIGMA: 0.8
+  ADAPTIVE_GAUS_SIGMA: true
+  GAUS_SIGMA_MIN: 0.5
+  GAUS_SIGMA_MAX: 1.0
+  GAUS_SIGMA_K: 12.0
   ONLY_TARGET_GAUS: true
   RESOLUTION: 224
   SEQUENCE_LENGTH: 75
