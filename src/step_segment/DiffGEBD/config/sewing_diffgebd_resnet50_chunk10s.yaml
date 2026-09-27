@@ -1,14 +1,14 @@
-# Same as config/sewing_diffgebd_resnet50.yaml, but trains on the *chunked*
-# Sewing dataset (see plans/plan_diff_dataloader.md) to fix the sampling
-# imbalance caused by END_TO_END's np.linspace running over whole (multi-minute)
-# videos instead of short clips.
+# Config for 10s chunks (~150 frames @ 15fps) with SEQUENCE_LENGTH=150 matching 1:1
+# (no frame skipping).
 #
 # Prepare with:
-#   python tools/prepare_diff_gebd_dataset.py
-#   python tools/chunk_diff_gebd_dataset.py --chunk-seconds 12 --overlap-seconds 1.5
+#   python tools/chunk_diff_gebd_dataset.py --chunk-seconds 10.0 --overlap-seconds 2.0 \
+#       --val-overlap-seconds 0.0 --min-chunk-seconds 5.0 --train-offsets 0.0,3.0,6.0 \
+#       --drop-negative-ratio 0.3
+#   python tools/clean_diff_gebd_dataset.py --apply
 #
-# Chunks are ~12s @ ~15fps (~150-180 frames), matching SEQUENCE_LENGTH=150 below
-# so np.linspace(1, vlen, 150) is close to a 1:1 sample instead of a ~40-frame skip.
+# BATCH_SIZE is set to 1 for SEQUENCE_LENGTH=150 to keep VRAM usage around 7-8GB
+# on 16GB VRAM GPUs (safely avoiding CUDA OOM).
 DATASETS:
   TRAIN:
   - SEWING_CHUNKED_train
@@ -35,6 +35,10 @@ INPUT:
   FRAME_PER_SIDE: 5
   GAUSSIAN_TARGET: false
   GAUS_SIGMA: 0.8
+  ADAPTIVE_GAUS_SIGMA: true
+  GAUS_SIGMA_MIN: 0.5
+  GAUS_SIGMA_MAX: 1.0
+  GAUS_SIGMA_K: 12.0
   ONLY_TARGET_GAUS: true
   RESOLUTION: 224
   SEQUENCE_LENGTH: 150
@@ -55,7 +59,7 @@ MODEL:
   NUM_LAYERS: 6
   SYNC_BN: false
   WINDOW_SIZE: 17
-OUTPUT_DIR: output/sewing_diffgebd_resnet50_chunked
+OUTPUT_DIR: output/sewing_diffgebd_resnet50_chunk10s
 SOLVER:
   AMPE: true
   BATCH_SIZE: 1
@@ -73,6 +77,8 @@ SOLVER:
   WARMUP: true
   WARMUP_EPOCHS: 5
   WEIGHT_DECAY: 0.0001
+  EARLY_STOP_PATIENCE: 10
+  EARLY_STOP_MIN_DELTA: 0.001
 TEST:
   PRED_FILE: ''
   PROTOCOL: max
