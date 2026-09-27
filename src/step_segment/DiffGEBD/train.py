@@ -336,6 +336,9 @@ def main(cfg, args):
     if args.detect_anomaly:
         torch.autograd.set_detect_anomaly(True)
     best_f1 = 0.
+    early_stop_patience = cfg.SOLVER.EARLY_STOP_PATIENCE
+    early_stop_min_delta = cfg.SOLVER.EARLY_STOP_MIN_DELTA
+    epochs_no_improve = 0
     for epoch in range(start_epoch + 1, cfg.SOLVER.MAX_EPOCHS):
         
         train_one_epoch(cfg, args, model, device, optimizer, scheduler, train_data_loader, summary_writer, auto_cast, loss_scaler, epoch)
@@ -359,6 +362,7 @@ def main(cfg, args):
                             f'Val_st{sampling_steps}/Rec@0.05' : results[0.05][1],
                             f'Val_st{sampling_steps}/Prec@0.05' : results[0.05][2],}, step=epoch)
                         
+        should_stop = False
         if is_main_process():
             if args.wandb:
                 wandb.log({'Train/loss' : summary_writer.meters['total_loss'].global_avg,
@@ -368,6 +372,11 @@ def main(cfg, args):
             model_state_dict = model.module.state_dict() if isinstance(model, DistributedDataParallel) else model.state_dict()
             
             save_path = None
+            if results[0.05][0] >= best_f1 + early_stop_min_delta:
+                epochs_no_improve = 0
+            else:
+                epochs_no_improve += 1
+
             if results[0.05][0] >= best_f1:
                 best_f1 = results[0.05][0]
                 save_path = os.path.join(output_dir, f'model_best.pth')
@@ -392,7 +401,23 @@ def main(cfg, args):
             
             if save_path:
                 print('Saved to {}'.format(save_path))
-            
+
+            if early_stop_patience > 0 and epochs_no_improve >= early_stop_patience:
+                should_stop = True
+                print(f'Early stopping at epoch {epoch}: no improvement in F1@0.05 '
+                      f'(best={best_f1:.4f}) for {epochs_no_improve} epochs '
+                      f'(patience={early_stop_patience}).')
+
+        if args.distributed:
+            # Broadcast rank 0's stop decision so every rank breaks the loop
+            # together (DDP forward/backward requires all ranks to stay in
+            # lock-step; only rank 0 computes val metrics / epochs_no_improve).
+            stop_tensor = torch.tensor([1 if should_stop else 0], device=device)
+            dist.broadcast(stop_tensor, src=0)
+            should_stop = bool(stop_tensor.item())
+
+        if should_stop:
+            break
 
 
 if __name__ == '__main__':

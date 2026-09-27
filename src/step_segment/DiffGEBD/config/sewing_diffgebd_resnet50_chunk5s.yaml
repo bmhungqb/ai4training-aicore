@@ -84,6 +84,12 @@ SOLVER:
   WARMUP: true
   WARMUP_EPOCHS: 5
   WEIGHT_DECAY: 0.0001
+  # Stop training if val F1@0.05 doesn't improve by at least MIN_DELTA for
+  # PATIENCE consecutive epochs (0 = disabled). Set well above WARMUP_EPOCHS
+  # so the LR warmup/cosine schedule has a chance to actually improve F1
+  # before patience starts counting against it.
+  EARLY_STOP_PATIENCE: 10
+  EARLY_STOP_MIN_DELTA: 0.001
 TEST:
   PRED_FILE: ''
   PROTOCOL: max

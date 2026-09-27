@@ -68,6 +68,10 @@ _C.SOLVER.GAMMA = 0.1
 _C.SOLVER.BATCH_SIZE = 32
 _C.SOLVER.AMPE = True  # automatic mixed precision training
 _C.SOLVER.LR = 1e-2
+# Early stopping on val F1@0.05 (see train.py::main). 0 disables early
+# stopping (train for the full MAX_EPOCHS, as before).
+_C.SOLVER.EARLY_STOP_PATIENCE = 0
+_C.SOLVER.EARLY_STOP_MIN_DELTA = 0.0
 _C.SOLVER.MOMENTUM = 0.9
 _C.SOLVER.WEIGHT_DECAY = 1e-4
 _C.SOLVER.CLIP_GRAD = 0.0
