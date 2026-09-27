@@ -252,8 +252,8 @@ def main() -> None:
     parser.add_argument("--threshold", type=float, default=0.5, help="Score threshold, matches cfg.TEST.THRESHOLD")
     parser.add_argument("--out-dir", type=Path, default=Path("experiments/diffgebd_preds"))
     parser.add_argument("--viz", action="store_true", help="Render annotated.mp4 and score_curve.png like EfficientGEBD")
-    parser.add_argument("--merge-eps", type=float, default=0.3,
-                         help="Merge boundaries within this many seconds (handles duplicate detections from overlapping chunks)")
+    parser.add_argument("--merge-eps", type=float, default=0.35,
+                         help="Merge boundaries within this many seconds (handles duplicate detections from overlapping/multi-grid chunks); 0.3-0.4s recommended for 5s chunks with 1.0s overlap")
     args = parser.parse_args()
 
     with open(args.pred_pkl, "rb") as f:
