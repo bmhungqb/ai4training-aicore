@@ -79,29 +79,34 @@ def train_one_epoch(cfg, args, model, device, optimizer, scheduler, data_loader,
             loss_scaler.scale(total_loss).backward()
             loss_scaler.unscale_(optimizer)
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad)
-            if not torch.isfinite(grad_norm):
-                nan_streak += 1
-                if is_main_process():
-                    print(f"WARNING: non-finite grad norm {grad_norm} at epoch {epoch} step {i}, skipping optimizer step! (consecutive={nan_streak})", flush=True)
-                loss_scaler.update()  # keep GradScaler's internal scale in sync even though we skip the step ourselves
-                if max_consecutive_nan > 0 and nan_streak >= max_consecutive_nan:
-                    _abort_on_nan_streak(i)
-                continue
+            grad_finite = torch.isfinite(grad_norm)
+            # IMPORTANT: always call scaler.step()/update() every iteration in
+            # that exact order, regardless of grad_finite. GradScaler tracks
+            # the inf/nan it saw during unscale_() internally and
+            # automatically no-ops the underlying optimizer.step() itself -
+            # manually skipping scaler.step() here (while still calling
+            # update()) desyncs its per-optimizer state machine and crashes
+            # on a *later*, unrelated iteration (e.g. "unscale_() has already
+            # been called" / assertion inside GradScaler.step()).
             loss_scaler.step(optimizer)
             loss_scaler.update()
-            scheduler.step()
+            if grad_finite:
+                scheduler.step()
         else:
             total_loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad)
-            if not torch.isfinite(grad_norm):
-                nan_streak += 1
-                if is_main_process():
-                    print(f"WARNING: non-finite grad norm {grad_norm} at epoch {epoch} step {i}, skipping optimizer step! (consecutive={nan_streak})", flush=True)
-                if max_consecutive_nan > 0 and nan_streak >= max_consecutive_nan:
-                    _abort_on_nan_streak(i)
-                continue
-            optimizer.step()
-            scheduler.step()
+            grad_finite = torch.isfinite(grad_norm)
+            if grad_finite:
+                optimizer.step()
+                scheduler.step()
+
+        if not grad_finite:
+            nan_streak += 1
+            if is_main_process():
+                print(f"WARNING: non-finite grad norm {grad_norm} at epoch {epoch} step {i}, skipping optimizer step! (consecutive={nan_streak})", flush=True)
+            if max_consecutive_nan > 0 and nan_streak >= max_consecutive_nan:
+                _abort_on_nan_streak(i)
+            continue
 
         nan_streak = 0
 
