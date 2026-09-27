@@ -700,7 +700,7 @@ def main():
 
     report_dir.mkdir(parents=True, exist_ok=True)
     json_report_file = report_dir / "eval_report.json"
-    json_report_file.write_text(json.dumps(eval_report_data, indent=2), encoding="utf-8")
+    json_report_file.write_text(json.dumps(eval_report_data, indent=2, default=str), encoding="utf-8")
     print(f"\n ✓ Saved Structured JSON Report -> {json_report_file}")
 
     md_report_file = report_dir / "01_eval_report.md"
