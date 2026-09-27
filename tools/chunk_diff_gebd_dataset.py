@@ -157,7 +157,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--dataset-dir", type=Path, default=Path("data/diff_gebd_dataset"))
     parser.add_argument("--chunk-seconds", type=float, default=5.0, help="Target chunk length in seconds")
-    parser.add_argument("--overlap-seconds", type=float, default=1.0, help="Overlap between consecutive chunks")
+    parser.add_argument("--overlap-seconds", type=float, default=1.0, help="Overlap between consecutive chunks for train")
+    parser.add_argument("--val-overlap-seconds", type=float, default=0.0,
+                         help="Overlap for val chunks (default 0.0: non-overlapping to completely avoid duplicate detections)")
     parser.add_argument("--min-chunk-seconds", type=float, default=3.0, help="Drop trailing chunks shorter than this")
     parser.add_argument("--drop-negative-ratio", type=float, default=0.0,
                          help="Fraction of boundary-free (negative) train chunks to randomly drop, to rebalance pos/neg")
@@ -178,11 +180,12 @@ def main() -> None:
         with open(ann_path, "rb") as f:
             annotation = pickle.load(f)
 
+        overlap_s = args.overlap_seconds if split == "train" else args.val_overlap_seconds
         images_dir = args.dataset_dir / "images" / split
         chunked = build_chunked_annotation(
             annotation, images_dir,
             chunk_seconds=args.chunk_seconds,
-            overlap_seconds=args.overlap_seconds,
+            overlap_seconds=overlap_s,
             min_chunk_seconds=args.min_chunk_seconds,
             drop_negative_ratio=args.drop_negative_ratio,
             apply_drop=(split == "train"),
