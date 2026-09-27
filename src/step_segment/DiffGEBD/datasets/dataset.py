@@ -62,7 +62,12 @@ def prepare_gebd_annotations(cfg, root, name, split):
     else:
         raise NotImplemented
 
-    filename = 'ann_{}_{}_{}-cache-fps{}-ds{}.pkl'.format(ann_select, name, split, frame_per_side, f'_dynamic{ds}' if dynamic_downsample else ds)
+    # v2: single-frame boundary labels (was: a whole +/-half_dur_2_nframes window
+    # marked as 1, which then got Gaussian-smoothed *again* in diffusion_model.py,
+    # producing a flat plateau instead of a single peak) + replicate-pad tail
+    # chunks (was: -1 sentinel -> all-black frame). Bump filename to invalidate
+    # any stale cache built with the old (buggy) logic.
+    filename = 'ann_{}_{}_{}-cache-fps{}-ds{}-v2.pkl'.format(ann_select, name, split, frame_per_side, f'_dynamic{ds}' if dynamic_downsample else ds)
     if cfg.INPUT.END_TO_END:
         filename = 'end_to_end{}_'.format(cfg.INPUT.SEQUENCE_LENGTH) + filename
 
@@ -143,20 +148,33 @@ def prepare_gebd_annotations(cfg, root, name, split):
 
                     half_dur_2_nframes = min_change_dur * fps / 2.
 
-                    labels = []
-                    for i in selected_indices:
-                        labels.append(0)
-                        for change in change_indices:
-                            if change - half_dur_2_nframes <= i <= change + half_dur_2_nframes:
-                                labels.pop()  # pop '0'
-                                labels.append(1)
-                                break
+                    # Mark exactly ONE sampled frame (the nearest one) per
+                    # ground-truth change, not every sampled frame within
+                    # +/-half_dur_2_nframes. The old window-marking approach
+                    # produced several consecutive 1-labeled frames for a
+                    # single boundary, which then got Gaussian-smoothed AGAIN
+                    # in diffusion_model.py::prepare_gaussian_targets, turning
+                    # a single peak into a flat multi-frame plateau ("double
+                    # smoothing"). Gaussian smoothing should only ever be
+                    # applied once, downstream, to a single-frame spike.
+                    labels = [0] * len(selected_indices)
+                    for change in change_indices:
+                        diffs = np.abs(selected_indices - change)
+                        nearest_pos = int(np.argmin(diffs))
+                        if diffs[nearest_pos] <= half_dur_2_nframes:
+                            labels[nearest_pos] = 1
 
                     assert len(selected_indices) <= cfg.INPUT.SEQUENCE_LENGTH
 
                     if len(selected_indices) < cfg.INPUT.SEQUENCE_LENGTH:
                         offset_length = cfg.INPUT.SEQUENCE_LENGTH - len(selected_indices)
-                        pad = -np.ones((offset_length,), dtype=int)
+                        # Replicate the last valid frame index instead of a -1
+                        # sentinel (which __getitem__ turns into an all-black
+                        # frame): keeps the tail of short/last chunks visually
+                        # continuous instead of injecting synthetic black
+                        # frames into the temporal self-similarity matrix.
+                        last_idx = selected_indices[-1] if len(selected_indices) > 0 else 1
+                        pad = np.full((offset_length,), last_idx, dtype=int)
                         selected_indices = np.concatenate((selected_indices, pad))
                         labels += [0] * offset_length
 
@@ -301,7 +319,7 @@ class GEBDDataset(Dataset):
             imgs = [imgs_L1, imgs_L2, imgs_L3, imgs_L4]
         else:
             flip = torch.rand(1) < 0.5
-            if self.train==0 and self.use_aug:  # fix flip or not in one video
+            if self.train and self.use_aug:  # fix flip once for the whole clip, not per-frame
                 self.transform.transforms[1].p = 1.0 if flip else 0.0
 
             imgs = torch.zeros(len(block_indices), 3, self.size, self.size, dtype=torch.float32)
@@ -397,7 +415,7 @@ class TAPOSDataset(Dataset):
         folder = item['folder']
 
         flip = torch.rand(1) < 0.5
-        if self.train==0 and self.use_aug:  # fix flip or not in one video
+        if self.train and self.use_aug:  # fix flip once for the whole clip, not per-frame
             self.transform.transforms[1].p = 1.0 if flip else 0.0
 
         imgs = torch.zeros(len(block_indices), 3, self.size, self.size, dtype=torch.float32)
