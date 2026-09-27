@@ -43,6 +43,15 @@ _C.INPUT.DYNAMIC_DOWNSAMPLE = False
 _C.INPUT.GAUSSIAN_TARGET = True
 _C.INPUT.GAUS_SIGMA = 1.
 _C.INPUT.ONLY_TARGET_GAUS = False
+# Adaptive sigma: scale each boundary's Gaussian width by its distance to the
+# nearest neighboring boundary (min_d / GAUS_SIGMA_K), clamped to
+# [GAUS_SIGMA_MIN, GAUS_SIGMA_MAX], instead of using a single fixed GAUS_SIGMA
+# for every boundary. Helps datasets with highly variable step durations
+# (e.g. sewing: ~0.4s micro-steps up to ~80s long seams).
+_C.INPUT.ADAPTIVE_GAUS_SIGMA = False
+_C.INPUT.GAUS_SIGMA_MIN = 0.5
+_C.INPUT.GAUS_SIGMA_MAX = 1.0
+_C.INPUT.GAUS_SIGMA_K = 12.0
 _C.INPUT.DOWNSAMPLE = 3
 _C.INPUT.END_TO_END = True  # input whole video
 _C.INPUT.SEQUENCE_LENGTH = 50  # input whole video

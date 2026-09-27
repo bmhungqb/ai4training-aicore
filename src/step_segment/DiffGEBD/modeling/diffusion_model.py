@@ -37,6 +37,47 @@ def prepare_gaussian_targets(targets, sigma=1):
     gaussian_targets = torch.stack(gaussian_targets, dim=0)
     return gaussian_targets.unsqueeze(1)
 
+
+def prepare_adaptive_gaussian_targets(targets, default_sigma=1., min_sigma=0.5, max_sigma=1.0, k=12.0):
+    """Like `prepare_gaussian_targets`, but scales each boundary's Gaussian
+    width by its distance to the nearest neighboring boundary in the same
+    chunk: `local_sigma = clamp(min_d / k, min_sigma, max_sigma)`.
+
+    `k` controls how aggressively sigma shrinks for closely-spaced boundaries;
+    `3 * (min_d / k) <= min_d / 2` (i.e. k >= 6) keeps adjacent bells from
+    fully overlapping at their midpoint, but k in [10, 14] leaves an actual
+    valley between very close boundaries instead of them just touching.
+    Chunks with a single boundary fall back to `default_sigma` (no neighbor
+    to derive a local width from).
+    """
+    targets = targets.squeeze(1)
+    gaussian_targets = []
+    for batch_idx in range(targets.shape[0]):
+        t = targets[batch_idx]
+        axis = torch.arange(len(t), device=targets.device)
+        gaussian_t = torch.zeros_like(t)
+        indices, = torch.nonzero(t, as_tuple=True)
+
+        for idx, i in enumerate(indices):
+            dists = []
+            if idx > 0:
+                dists.append((i - indices[idx - 1]).item())
+            if idx < len(indices) - 1:
+                dists.append((indices[idx + 1] - i).item())
+
+            if dists:
+                local_sigma = max(min_sigma, min(max_sigma, min(dists) / k))
+            else:
+                local_sigma = default_sigma
+
+            g = torch.exp(-(axis - i) ** 2 / (2 * local_sigma * local_sigma))
+            gaussian_t += g
+
+        gaussian_t = gaussian_t.clamp(0, 1)
+        gaussian_targets.append(gaussian_t)
+    gaussian_targets = torch.stack(gaussian_targets, dim=0)
+    return gaussian_targets.unsqueeze(1)
+
 ########## Diffusion Functions ##########
 def log(t, eps=1e-20):
     return torch.log(t.clamp(min=eps))
@@ -122,6 +163,10 @@ class DiffusionMSE(Module):
         
         self.gaus_sigma = cfg.INPUT.GAUS_SIGMA
         self.only_gaus_target = cfg.INPUT.ONLY_TARGET_GAUS
+        self.adaptive_gaus_sigma = cfg.INPUT.ADAPTIVE_GAUS_SIGMA
+        self.gaus_sigma_min = cfg.INPUT.GAUS_SIGMA_MIN
+        self.gaus_sigma_max = cfg.INPUT.GAUS_SIGMA_MAX
+        self.gaus_sigma_k = cfg.INPUT.GAUS_SIGMA_K
         #################################### Diffusion parameters ####################################
         self.cfg_prob = cfg.DIFFUSION.CFG_PROB
         self.cfg_scale = cfg.DIFFUSION.CFG_SCALE
@@ -171,6 +216,14 @@ class DiffusionMSE(Module):
         register_buffer('posterior_mean_coef2',
                              (1. - alphas_cumprod_prev) * torch.sqrt(alphas) / (1. - alphas_cumprod))
     
+
+    def _make_gaussian_targets(self, targets):
+        if self.adaptive_gaus_sigma:
+            return prepare_adaptive_gaussian_targets(
+                targets, default_sigma=self.gaus_sigma,
+                min_sigma=self.gaus_sigma_min, max_sigma=self.gaus_sigma_max, k=self.gaus_sigma_k,
+            )
+        return prepare_gaussian_targets(targets, sigma=self.gaus_sigma)
 
     def backbone_forward(self, imgs):
         if isinstance(imgs, torch.Tensor):
@@ -247,7 +300,7 @@ class DiffusionMSE(Module):
 
         if self.training:    
             if self.gaus_target:
-                loss_targets = prepare_gaussian_targets(targets, sigma=self.gaus_sigma)
+                loss_targets = self._make_gaussian_targets(targets)
             else:
                 loss_targets = targets
             
@@ -261,7 +314,7 @@ class DiffusionMSE(Module):
             
             if self.only_gaus_target:
                 assert(self.gaus_target==False)
-                loss_targets = prepare_gaussian_targets(targets, sigma=self.gaus_sigma) # 0 ~ 1
+                loss_targets = self._make_gaussian_targets(targets) # 0 ~ 1
                 loss_targets = denormalize_scale(loss_targets, self.scale) # [-s, s]
             
             loss_targets = loss_targets / self.scale
