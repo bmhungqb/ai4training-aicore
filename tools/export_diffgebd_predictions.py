@@ -192,6 +192,58 @@ def render_annotated_video(frame_dir, vlen, fps, pred_frame_idx, gt_frame_idx, o
                 writer.write(freeze_frame)
     writer.release()
 
+def scores_to_preds_json(
+    model_pred_dict: dict,
+    annotation: dict,
+    chunked_annotation: dict,
+    threshold: float,
+    merge_eps: float = 0.3,
+) -> dict[str, list[float]]:
+    """Threshold raw per-frame scores into boundary timestamps per source video.
+
+    Pure function (no I/O) so it can be swept over many threshold values, e.g.
+    by tools/sweep_diffgebd_threshold.py, without re-reading the pickle/annotation
+    for every candidate threshold.
+    """
+    # video_id -> accumulated global-timestamp boundaries (chunked predictions
+    # are mapped back to the source video's frame/time reference and merged;
+    # plain (non-chunked) predictions pass straight through).
+    boundaries_by_source: dict[str, list[float]] = {}
+
+    for vid, pred in model_pred_dict.items():
+        chunk_meta = chunked_annotation.get(vid)
+        boundary_frames = get_boundary_frame_indices(threshold, pred["frame_idx"], pred["scores"])
+
+        if chunk_meta is not None:
+            # Chunked video: remap local (chunk) frame indices -> global frame
+            # indices in the source video, using the offset recorded by
+            # tools/chunk_diff_gebd_dataset.py.
+            source_vid = chunk_meta["source_vid"]
+            chunk_start = int(chunk_meta["chunk_start_frame"])
+            fps = float(chunk_meta["fps"])
+            global_frames = [chunk_start + f - 1 for f in boundary_frames]
+            boundary_ts = [round((f - 1) / fps, 3) for f in global_frames]
+            boundaries_by_source.setdefault(source_vid, []).extend(boundary_ts)
+        else:
+            meta = annotation.get(vid)
+            if meta is None:
+                continue
+            fps = float(meta["fps"])
+            # frame_idx is 1-indexed (ffmpeg frame%d.jpg convention), same as
+            # tools/prepare_diff_gebd_dataset.py::build_annotation.
+            boundary_ts = [round((f - 1) / fps, 3) for f in boundary_frames]
+            boundaries_by_source.setdefault(vid, []).extend(boundary_ts)
+
+    preds_json: dict[str, list[float]] = {}
+    for source_vid, boundary_ts in boundaries_by_source.items():
+        meta = annotation.get(source_vid)
+        if meta is None:
+            continue
+        merged_ts = merge_close_boundaries(boundary_ts, eps=merge_eps)
+        preds_json[source_vid] = merged_ts
+    return preds_json
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--pred-pkl", type=Path, required=True, help="model_pred_dict_ep*.pkl from DiffGEBD train.py")
@@ -210,49 +262,17 @@ def main() -> None:
     annotation = load_annotation(args.dataset_dir, args.split)
     chunked_annotation = load_chunked_annotation(args.dataset_dir, args.split)
 
-    # video_id -> accumulated global-timestamp boundaries (chunked predictions
-    # are mapped back to the source video's frame/time reference and merged;
-    # plain (non-chunked) predictions pass straight through).
-    boundaries_by_source: dict[str, list[float]] = {}
+    preds_json = scores_to_preds_json(model_pred_dict, annotation, chunked_annotation, args.threshold, args.merge_eps)
 
-    for vid, pred in model_pred_dict.items():
-        chunk_meta = chunked_annotation.get(vid)
-        boundary_frames = get_boundary_frame_indices(args.threshold, pred["frame_idx"], pred["scores"])
-
-        if chunk_meta is not None:
-            # Chunked video: remap local (chunk) frame indices -> global frame
-            # indices in the source video, using the offset recorded by
-            # tools/chunk_diff_gebd_dataset.py.
-            source_vid = chunk_meta["source_vid"]
-            chunk_start = int(chunk_meta["chunk_start_frame"])
-            fps = float(chunk_meta["fps"])
-            global_frames = [chunk_start + f - 1 for f in boundary_frames]
-            boundary_ts = [round((f - 1) / fps, 3) for f in global_frames]
-            boundaries_by_source.setdefault(source_vid, []).extend(boundary_ts)
-        else:
-            meta = annotation.get(vid)
-            if meta is None:
-                print(f"WARNING: {vid} not found in {args.split}_annotation(.pkl|_chunked.pkl), skipping")
-                continue
-            fps = float(meta["fps"])
-            # frame_idx is 1-indexed (ffmpeg frame%d.jpg convention), same as
-            # tools/prepare_diff_gebd_dataset.py::build_annotation.
-            boundary_ts = [round((f - 1) / fps, 3) for f in boundary_frames]
-            boundaries_by_source.setdefault(vid, []).extend(boundary_ts)
-
-    preds_json: dict[str, list[float]] = {}
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
-    for source_vid, boundary_ts in boundaries_by_source.items():
+    for source_vid, merged_ts in preds_json.items():
         meta = annotation.get(source_vid)
         if meta is None:
             print(f"WARNING: source video {source_vid} not found in {args.split}_annotation.pkl, skipping")
             continue
         fps = float(meta["fps"])
         duration = float(meta["video_duration"])
-
-        merged_ts = merge_close_boundaries(boundary_ts, eps=args.merge_eps)
-        preds_json[source_vid] = merged_ts
 
         video_out_dir = args.out_dir / source_vid
         video_out_dir.mkdir(parents=True, exist_ok=True)

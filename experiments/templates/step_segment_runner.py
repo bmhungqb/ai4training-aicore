@@ -150,6 +150,14 @@ def run_diff_gebd(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
             cmd.extend(["SOLVER.MAX_EPOCHS", str(train_cfg["epochs"])])
         if "learning_rate" in train_cfg:
             cmd.extend(["SOLVER.LR", str(train_cfg["learning_rate"])])
+        # Recall/precision-balancing knobs (see docs/step_segment/diff_gebd.md):
+        # higher pos_loss_weight / gaus_sigma bias training towards recall.
+        if "pos_loss_weight" in train_cfg:
+            cmd.extend(["MODEL.POS_LOSS_WEIGHT", str(train_cfg["pos_loss_weight"])])
+        if "gaus_sigma" in train_cfg:
+            cmd.extend(["INPUT.GAUS_SIGMA", str(train_cfg["gaus_sigma"])])
+        if "accum_steps" in train_cfg:
+            cmd.extend(["SOLVER.ACCUM_STEPS", str(train_cfg["accum_steps"])])
 
         logger.info(f"Executing DiffGEBD Training: {' '.join(cmd)}")
         subprocess.run(cmd, cwd=str(diff_dir), env=env, check=True)
@@ -493,6 +501,12 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
                 cmd.extend(["SOLVER.MAX_EPOCHS", str(train_cfg["epochs"])])
             if "learning_rate" in train_cfg:
                 cmd.extend(["SOLVER.LR", str(train_cfg["learning_rate"])])
+            if "pos_loss_weight" in train_cfg:
+                cmd.extend(["MODEL.POS_LOSS_WEIGHT", str(train_cfg["pos_loss_weight"])])
+            if "gaus_sigma" in train_cfg:
+                cmd.extend(["INPUT.GAUS_SIGMA", str(train_cfg["gaus_sigma"])])
+            if "accum_steps" in train_cfg:
+                cmd.extend(["SOLVER.ACCUM_STEPS", str(train_cfg["accum_steps"])])
             print(f"   Working Directory: {diff_dir}")
             print(f"   Execution Command: {' '.join(cmd)}")
         elif mode == "infer":

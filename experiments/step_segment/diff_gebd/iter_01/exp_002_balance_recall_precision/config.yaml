@@ -1,0 +1,31 @@
+experiment_id: exp_002_balance_recall_precision
+track: step_segment
+iteration_id: iter_01
+model_type: diff_gebd
+
+description: "DiffGEBD (ResNet-50) with reduced POS_LOSS_WEIGHT/GAUS_SIGMA to trade some recall back for precision vs exp_001_baseline"
+
+model_params:
+  backbone: resnet50
+  sequence_length: 150
+  cfg_scale: 7.0
+
+training_params:
+  epochs: 100
+  learning_rate: 0.00002
+  # exp_001_baseline used pos_loss_weight=5.0 + gaus_sigma=1.5, which
+  # deliberately over-weighted the MSE loss near boundary frames and widened
+  # the positive-target gaussian bump to fix a recall=0.19 sampling-imbalance
+  # bug. That fix overcorrected towards recall. Dialing both back narrows the
+  # model's positive prediction window and reduces the loss emphasis on
+  # boundary frames, which should recover precision without re-introducing
+  # the original near-zero recall.
+  pos_loss_weight: 2.0
+  gaus_sigma: 0.8
+  accum_steps: 8
+
+eval_params:
+  primary_window: 0.5
+  tolerance_windows: [0.25, 0.5, 1.0]
+
+diffgebd_config_file: "src/step_segment/DiffGEBD/config/sewing_diffgebd_resnet50_chunked.yaml"
