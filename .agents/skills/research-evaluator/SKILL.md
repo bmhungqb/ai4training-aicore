@@ -55,7 +55,24 @@ The **Evaluator Agent** is the objective observer of the AI Research Loop. Its j
 - Visual error frames: `outputs/<track>/<iteration_id>/<exp_id>/error_cases/*.jpg`
 - Score curves / annotated videos (optional): `outputs/<track>/<iteration_id>/<exp_id>/visualizations/`
 
-## Execution Workflow
+## Automated Checkpoint Trigger (`@research-evaluator <checkpoint_path>`)
+
+When the user tags `@research-evaluator` and provides a checkpoint path (e.g. `model_best.pth`), the evaluator automatically executes the end-to-end evaluation tool:
+
+```bash
+python tools/evaluate_checkpoint.py \
+    --weights <path_to_checkpoint.pth> \
+    --track <track> --iter-id <iteration_id> --exp-id <exp_id>
+```
+
+This single command automatically:
+1. Resolves the config YAML from the checkpoint directory.
+2. Runs native inference (`tools/infer_diffgebd.py`), saving predictions to `predictions.json`.
+3. Copies logs (`metrics.txt` -> `train.log`).
+4. Executes `tools/eval_and_inspect_errors.py` to extract Top 4 severe visual error frames (`error_cases/*.jpg`) and multi-tolerance metrics.
+5. Generates `experiments/<track>/<iteration_id>/01_eval_report.md` and `eval_report.json`.
+
+## Manual / Step-by-Step Execution Workflow
 
 1. Execute the comprehensive evaluation and inspection tool:
    ```bash
