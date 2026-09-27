@@ -69,7 +69,7 @@ MODEL:
 OUTPUT_DIR: output/sewing_diffgebd_resnet50_chunk5s
 SOLVER:
   AMPE: true
-  BATCH_SIZE: 2
+  BATCH_SIZE: 1
   CLIP_GRAD: 1.0
   GAMMA: 0.1
   LR: 2.0e-05
