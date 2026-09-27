@@ -296,22 +296,59 @@ def extract_visual_frames_for_error(case: dict, out_dir: Path) -> dict:
     temp_next = out_dir / f"{prefix}_temp_next.jpg"
 
     def extract_single_frame(time_s: float, target: Path):
-        cmd = [
-            "ffmpeg", "-y", "-ss", f"{time_s:.3f}",
-            "-i", str(mp4_path),
-            "-vframes", "1",
-            "-q:v", "2",
-            str(target)
-        ]
-        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return target.exists()
+        # 1. Try OpenCV (cv2) first as it doesn't require an external ffmpeg binary
+        try:
+            import cv2
+            cap = cv2.VideoCapture(str(mp4_path))
+            if cap.isOpened():
+                fps = cap.get(cv2.CAP_PROP_FPS) or 15.0
+                frame_idx = max(0, int(round(time_s * fps)))
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                ret, frame = cap.read()
+                cap.release()
+                if ret and frame is not None:
+                    cv2.imwrite(str(target), frame)
+                    return True
+        except Exception:
+            pass
+
+        # 2. Try external ffmpeg binary if available
+        try:
+            cmd = [
+                "ffmpeg", "-y", "-ss", f"{time_s:.3f}",
+                "-i", str(mp4_path),
+                "-vframes", "1",
+                "-q:v", "2",
+                str(target)
+            ]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if target.exists():
+                return True
+        except (FileNotFoundError, Exception):
+            pass
+
+        # 3. Fallback to pre-extracted frames in data/ if available
+        try:
+            import shutil
+            fps = 15.0
+            frame_idx = max(1, int(round(time_s * fps)) + 1)
+            candidates = list(REPO_ROOT.glob(f"data/**/images/**/{vid}/frame{frame_idx}.jpg"))
+            if not candidates:
+                candidates = list(REPO_ROOT.glob(f"data/**/images/**/{vid}__chunk*/frame*.jpg"))
+            if candidates and candidates[0].exists():
+                shutil.copyfile(candidates[0], target)
+                return True
+        except Exception:
+            pass
+
+        return False
 
     ok_cur = extract_single_frame(t_cur, temp_cur)
     ok_prev = extract_single_frame(t_prev, temp_prev)
     ok_next = extract_single_frame(t_next, temp_next)
 
     if not ok_cur:
-        return {"visual_extracted": False, "reason": "Failed to extract frame via ffmpeg"}
+        return {"visual_extracted": False, "reason": "Frame extraction tool (OpenCV/FFmpeg) unavailable"}
 
     # Copy current frame as the main event frame
     if temp_cur.exists():
@@ -620,10 +657,16 @@ def main():
     error_frames_dir = out_dir / "error_cases"
 
     for case in severe_errors:
-        visual_info = extract_visual_frames_for_error(case, error_frames_dir)
-        case["visual_info"] = visual_info
-        if visual_info.get("visual_extracted"):
-            print(f"   ✓ Extracted visual frames for {case['case_id']}")
+        try:
+            visual_info = extract_visual_frames_for_error(case, error_frames_dir)
+            case["visual_info"] = visual_info
+            if visual_info.get("visual_extracted"):
+                print(f"   ✓ Extracted visual frames for {case['case_id']}")
+            else:
+                print(f"   ℹ️  Note for {case['case_id']}: {visual_info.get('reason', 'no frames extracted')}")
+        except Exception as e:
+            case["visual_info"] = {"visual_extracted": False, "reason": str(e)}
+            print(f"   ⚠️ Could not extract frames for {case['case_id']}: {e}")
 
     # 5. Optional Visualization rendering
     if args.viz:
