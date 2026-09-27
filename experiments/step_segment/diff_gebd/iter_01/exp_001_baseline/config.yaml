@@ -13,7 +13,6 @@ model_params:
 training_params:
   epochs: 100
   learning_rate: 0.00002
-  accum_steps: 8
 
 eval_params:
   primary_window: 0.5
