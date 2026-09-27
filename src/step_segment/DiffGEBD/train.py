@@ -317,6 +317,13 @@ def main(cfg, args):
                 if is_main_process():
                     print('Loaded {} from {}'.format(name, args.resume), flush=True)
 
+        if args.reset_lr:
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = cfg.SOLVER.LR
+                param_group['initial_lr'] = cfg.SOLVER.LR
+            if is_main_process():
+                print(f'Overrode optimizer learning rate to {cfg.SOLVER.LR} via --reset-lr', flush=True)
+
     summary_writer = MetricLogger(log_dir=os.path.join(output_dir, 'logs')) if is_main_process() else None
     if summary_writer is not None:
         summary_writer.add_meter('lr', SmoothedValue(fmt='{value:.5f}'))
@@ -393,6 +400,7 @@ if __name__ == '__main__':
     parser.add_argument("--config-file", help="path to config file", type=str)
     parser.add_argument("--local_rank", type=int)
     parser.add_argument("--resume", type=str)
+    parser.add_argument("--reset-lr", action='store_true', help='Override checkpoint optimizer LR with cfg.SOLVER.LR')
     parser.add_argument("--test-only", action='store_true')
     parser.add_argument("--train-test", action='store_true')
     parser.add_argument("--all-thres", action='store_true', help='test using all thresholds [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5]')
