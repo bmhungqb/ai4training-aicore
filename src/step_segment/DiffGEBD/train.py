@@ -51,11 +51,17 @@ def train_one_epoch(cfg, args, model, device, optimizer, scheduler, data_loader,
             loss_dict = model(samples, targets, masks)
             total_loss = sum(loss_dict.values())
 
+        if not torch.isfinite(total_loss):
+            if is_main_process():
+                print(f"WARNING: non-finite loss {total_loss} at epoch {epoch} step {i}, skipping optimizer step!", flush=True)
+            optimizer.zero_grad()
+            continue
+
         optimizer.zero_grad()
         if cfg.SOLVER.AMPE:
             loss_scaler.scale(total_loss).backward()
-
             if cfg.SOLVER.CLIP_GRAD > 0:
+                loss_scaler.unscale_(optimizer)
                 torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.SOLVER.CLIP_GRAD)
             loss_scaler.step(optimizer)
             loss_scaler.update()
@@ -330,8 +336,12 @@ def main(cfg, args):
         summary_writer.add_meter('total_time', SmoothedValue(fmt='{avg:.3f}s'))
         summary_writer.add_meter('model_time', SmoothedValue(fmt='{avg:.3f}s'))
 
-    auto_cast = torch.cuda.amp.autocast if cfg.SOLVER.AMPE else suppress
-    loss_scaler = torch.cuda.amp.GradScaler() if cfg.SOLVER.AMPE else None
+    if cfg.SOLVER.AMPE:
+        auto_cast = (lambda: torch.amp.autocast('cuda')) if hasattr(torch, 'amp') and hasattr(torch.amp, 'autocast') else torch.cuda.amp.autocast
+        loss_scaler = (torch.amp.GradScaler('cuda') if hasattr(torch, 'amp') and hasattr(torch.amp, 'GradScaler') else torch.cuda.amp.GradScaler())
+    else:
+        auto_cast = suppress
+        loss_scaler = None
 
     if args.detect_anomaly:
         torch.autograd.set_detect_anomaly(True)

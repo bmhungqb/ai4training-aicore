@@ -55,9 +55,9 @@ class DiffHead(nn.Module):
 
         diffs = out_list
 
-        x = diffs.permute(0, 3, 1, 2).contiguous()  # (b*nw, w, nl*2, c)
-        
-        sim = F.cosine_similarity(x.unsqueeze(2), x.unsqueeze(1), dim=-1)  # (b*nw, w, w, nl)
+        # Cast to float32 with eps=1e-5 to prevent underflow to 0.0 under fp16 AMP
+        x_f32 = x.float()
+        sim = F.cosine_similarity(x_f32.unsqueeze(2), x_f32.unsqueeze(1), dim=-1, eps=1e-5).to(x.dtype)  # (b*nw, w, w, nl)
         
         diff_map = sim.permute(0, 3, 1, 2).contiguous()  # (b*nw, nl, w, w)
         diff_map = self.ddm_encoder(diff_map).mean(-1).mean(-1) # (b*nw, c)
@@ -120,8 +120,9 @@ class DiffHead_former(nn.Module):
         # (b*nw, nl*3, nf, c)
         diffs = torch.cat(diffs, dim=1).permute(0, 1, 3, 2).contiguous()
         x = diffs.permute(0, 2, 1, 3).contiguous()  # (b*nw, nf, nl*3, c)
-
-        sim = F.cosine_similarity(x.unsqueeze(2), x.unsqueeze(1), dim=-1)  # (b*nw, nf, nf, nl*3)
+        # Cast to float32 with eps=1e-5 to prevent underflow to 0.0 under fp16 AMP
+        x_f32 = x.float()
+        sim = F.cosine_similarity(x_f32.unsqueeze(2), x_f32.unsqueeze(1), dim=-1, eps=1e-5).to(x.dtype)  # (b*nw, nf, nf, nl*3)
         diff_map = sim.permute(0, 3, 1, 2).contiguous()  # (b*nw, nl*3, nf, nf)
         diff_map = self.ddm_encoder(diff_map)
         # (b*nw, 512, nf_down_down)
