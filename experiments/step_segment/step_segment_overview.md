@@ -10,8 +10,8 @@
 
 | Rank | Model Architecture | Experiment ID | Backbone | Macro F1 (0.5s) | Recall (0.5s) | Precision (0.5s) | F1 @ 0.25s | F1 @ 1.0s | Status |
 | :---: | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| 1 | **DiffGEBD** | [`exp_001_baseline`](iter_01/01_eval_report.md) | ResNet-50 | **40.77%** | **40.67%** | **40.86%** | 22.75% | 58.56% | Evaluated (Baseline) |
 | - | **EfficientGEBD** | [`exp_001_baseline`](efficient_gebd/iter_01/exp_001_baseline/) | ResNet-50 | - | - | - | - | - | Ready to benchmark |
-| - | **DiffGEBD** | [`exp_001_baseline`](diff_gebd/iter_01/exp_001_baseline/) | ResNet-50 | - | - | - | - | - | Chunked baseline ready |
 | - | **DDM-Net** | [`exp_001_baseline`](ddm_net/iter_01/exp_001_baseline/) | ResNet-50 | - | - | - | - | - | Aux re-weighted ready |
 
 *Target Criteria for Champion Model*: Macro F1 $\ge 65.0\%$ at $\pm 0.5$s, Inference speed $\ge 25$ fps, VRAM $\le 8$GB.
@@ -24,8 +24,8 @@
 
 | Timestamp | Model | Experiment ID | Path / Config | Key Tested Variable | Macro F1 (0.5s) | Recall | Precision | Verdict / Notes |
 | :--- | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :--- |
+| 2026-09-27 | `DiffGEBD` | `exp_001_baseline` | [report](iter_01/01_eval_report.md) | 5s chunking + ann=1 single-frame label fix | **40.77%** | 40.67% | 40.86% | Evaluated. Balanced Prec/Rec; temporal shift 0.25-1.0s. |
 | Planned | `EfficientGEBD` | `exp_001_baseline` | [config.yaml](efficient_gebd/iter_01/exp_001_baseline/config.yaml) | 10s slice sampling + `POS_WEIGHT: 4.5` | - | - | - | Pending Human execution |
-| Planned | `DiffGEBD` | `exp_001_baseline` | [config.yaml](diff_gebd/iter_01/exp_001_baseline/config.yaml) | 12s overlapping chunks + CFG 7.0 | - | - | - | Pending Human execution |
 | Planned | `DDM-Net` | `exp_001_baseline` | [config.yaml](ddm_net/iter_01/exp_001_baseline/config.yaml) | Weighted aux heads (`main + 0.3*aux`) | - | - | - | Pending Human execution |
 
 ---
