@@ -96,6 +96,8 @@ def train_one_epoch(cfg, args, model, device, optimizer, scheduler, data_loader,
 
 @torch.no_grad()
 def validate(cfg, args, model, device, data_loader, epoch):
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
     if cfg.INPUT.END_TO_END:
         return validate_end_to_end(cfg, args, model, device, data_loader, epoch)
 
