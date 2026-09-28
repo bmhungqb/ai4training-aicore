@@ -10,8 +10,8 @@
 - **Stage 1 (Kinematic)**: Motion boundary detection (SAM 3 hand tracking + SEA-RAFT optical flow + speed valley fusion). Zero VLM cost.
 - **Stage 2 (VLM Analysis)**: Expert guideline extraction (`expert_analysis.py`), Worker action classification (`segment_classify.py`), Macro timing comparison (`macro_eval.py`), Micro bottleneck diagnosis (`micro_eval.py`).
 - **Core Documentation**:
-  - [`docs/action_segment/stage1_kinematic.md`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/docs/action_segment/stage1_kinematic.md)
-  - [`docs/action_segment/stage2_vlm_analysis.md`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/docs/action_segment/stage2_vlm_analysis.md)
+  - [`docs/action_segment/stage1_kinematic.md`](file:///home/hungbm/ai4training/ai4training-aicore/docs/action_segment/stage1_kinematic.md)
+  - [`docs/action_segment/stage2_vlm_analysis.md`](file:///home/hungbm/ai4training/ai4training-aicore/docs/action_segment/stage2_vlm_analysis.md)
 
 ---
 

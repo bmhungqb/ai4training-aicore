@@ -412,7 +412,7 @@ def merge_configs(args: argparse.Namespace) -> DictConfig:
         'scheduler', 'warmup_epochs', 'warmup_lr', 'decay_epochs', 'decay_rate',
         'min_lr', 'patience_epochs', 'epochs', 'eval_freq', 'clip_grad', 'clip_mode', 'aux_loss_weight',
         'amp', 'model_ema', 'model_ema_decay', 'model_ema_start_epoch',
-        'eval_metric', 'save_visualizations', 'log_interval', 'output', 'exp_name',
+        'eval_metric', 'save_visualizations', 'log_interval', 'output', 'output_dir', 'exp_name',
         'resume', 'checkpoint_top_k', 'num_gpus', 'num_nodes', 'strategy',
         'dry_run', 'early_stopping', 'early_stopping_patience', 'early_stopping_min_delta'
     ]

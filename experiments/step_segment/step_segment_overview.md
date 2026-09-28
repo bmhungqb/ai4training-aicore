@@ -10,9 +10,9 @@
 
 | Rank | Model Architecture | Experiment ID | Backbone | Macro F1 (0.5s) | Recall (0.5s) | Precision (0.5s) | F1 @ 0.25s | F1 @ 1.0s | Status |
 | :---: | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| 1 | **DiffGEBD** | [`exp_001_baseline`](iter_01/01_eval_report.md) | ResNet-50 | **40.77%** | **40.67%** | **40.86%** | 22.75% | 58.56% | Evaluated (Baseline) |
-| - | **EfficientGEBD** | [`exp_001_baseline`](efficient_gebd/iter_01/exp_001_baseline/) | ResNet-50 | - | - | - | - | - | Ready to benchmark |
-| - | **DDM-Net** | [`exp_001_baseline`](ddm_net/iter_01/exp_001_baseline/) | ResNet-50 | - | - | - | - | - | Aux re-weighted ready |
+| 1 | **EfficientGEBD** | [`exp_001_baseline`](efficient_gebd/iter_01/01_eval_report.md) | ResNet-50 | **57.60%** | **88.09%** | **42.79%** | **34.83%** | **63.34%** | Evaluated (Current Champion) |
+| 2 | **DiffGEBD** | [`exp_001_baseline`](diff_gebd/iter_01/01_eval_report.md) | ResNet-50 | **40.77%** | **40.67%** | **40.86%** | 22.75% | 58.56% | Evaluated (Baseline) |
+| 3 | **DDM-Net** | [`exp_001_baseline`](ddm_net/iter_01/01_eval_report.md) | ResNet-50 | **24.80%** | **17.08%** | **45.24%** | 14.68% | 38.17% | Evaluated (Baseline) |
 
 *Target Criteria for Champion Model*: Macro F1 $\ge 65.0\%$ at $\pm 0.5$s, Inference speed $\ge 25$ fps, VRAM $\le 8$GB.
 
@@ -24,13 +24,13 @@
 
 | Timestamp | Model | Experiment ID | Path / Config | Key Tested Variable | Macro F1 (0.5s) | Recall | Precision | Verdict / Notes |
 | :--- | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :--- |
-| 2026-09-27 | `DiffGEBD` | `exp_001_baseline` | [report](iter_01/01_eval_report.md) | 5s chunking + ann=1 single-frame label fix | **40.77%** | 40.67% | 40.86% | Evaluated. Balanced Prec/Rec; temporal shift 0.25-1.0s. |
-| Planned | `EfficientGEBD` | `exp_001_baseline` | [config.yaml](efficient_gebd/iter_01/exp_001_baseline/config.yaml) | 10s slice sampling + `POS_WEIGHT: 4.5` | - | - | - | Pending Human execution |
-| Planned | `DDM-Net` | `exp_001_baseline` | [config.yaml](ddm_net/iter_01/exp_001_baseline/config.yaml) | Weighted aux heads (`main + 0.3*aux`) | - | - | - | Pending Human execution |
-| 2026-09-28 | `DiffGEBD` | `exp_000_training_health_audit` | [iter_01/exp_000_training_health_audit](iter_01/exp_000_training_health_audit/) | Log-only audit of `train.log` restart segments vs `model_best.pth` | n/a | n/a | n/a | `WARN`: 3 restart segments found; global-best epoch 6/segment 1 (Rel@0.05 F1=0.2946) confirmed as `model_best.pth`, no divergence |
-| 2026-09-28 | `DiffGEBD` | `exp_000b_aggregate_error_histograms` | [iter_01/exp_000b_aggregate_error_histograms](iter_01/exp_000b_aggregate_error_histograms/) | Dataset-wide FN/FP distribution vs. anecdotal n=2 hypotheses | n/a | n/a | n/a | `PASS` (tool ran cleanly) but both H1 (FN near chunk-start) and H2 (FP sub-1s clustering) **did not generalize** dataset-wide (30.68%/31.68% vs ~30% baseline expectation) |
-| 2026-09-28 | `DiffGEBD` | `exp_002_val_overlap_context` (main, 2.5s overlap) | [iter_01/exp_002_val_overlap_context](iter_01/exp_002_val_overlap_context/) | `--val-overlap-seconds` 0.0 -> 2.5 on existing checkpoint | 0.2975 | 0.2427 | 0.3843 | Below all 3 seed-noise-floor runs (0.3435-0.3790) and shifted-window control (0.3594); iter_01 single-seed baseline was 0.4077 |
-| 2026-09-28 | `DiffGEBD` | `exp_003_min_peak_distance_suppression` (LOVO) | [iter_01/exp_003_min_peak_distance_suppression](iter_01/exp_003_min_peak_distance_suppression/) | Post-hoc `--min-peak-distance` (LOVO-tuned, candidates 0.5/1.0/1.5s) | 0.3807 | n/a | n/a | +0.0031 over no-suppression baseline (0.3776); simple threshold-sweep control (thr=0.8) alone reached 0.3780 |
+| 2026-09-27 | `DiffGEBD` | `exp_001_baseline` | [report](diff_gebd/iter_01/01_eval_report.md) | 5s chunking + ann=1 single-frame label fix | **40.77%** | 40.67% | 40.86% | Evaluated. Balanced Prec/Rec; temporal shift 0.25-1.0s. |
+| 2026-09-28 | `DDM-Net` | `exp_001_baseline` | [report](ddm_net/iter_01/01_eval_report.md) | Weighted aux heads (`main + 0.3*aux`) | **24.80%** | 17.08% | 45.24% | Evaluated. Moderate precision (45.2%), lower recall; needs temporal stride/head tuning. |
+| 2026-09-28 | `EfficientGEBD` | `exp_001_baseline` | [report](efficient_gebd/iter_01/01_eval_report.md) | 10s slice sampling + `POS_WEIGHT: 7.0` | **57.60%** | 88.09% | 42.79% | Current Champion. High recall (88.09%), fast inference. Approaching 65% target. |
+| 2026-09-28 | `DiffGEBD` | `exp_000_training_health_audit` | [diff_gebd/iter_01/exp_000_training_health_audit](diff_gebd/iter_01/exp_000_training_health_audit/) | Log-only audit of `train.log` restart segments vs `model_best.pth` | n/a | n/a | n/a | `WARN`: 3 restart segments found; global-best epoch 6/segment 1 (Rel@0.05 F1=0.2946) confirmed as `model_best.pth`, no divergence |
+| 2026-09-28 | `DiffGEBD` | `exp_000b_aggregate_error_histograms` | [diff_gebd/iter_01/exp_000b_aggregate_error_histograms](diff_gebd/iter_01/exp_000b_aggregate_error_histograms/) | Dataset-wide FN/FP distribution vs. anecdotal n=2 hypotheses | n/a | n/a | n/a | `PASS` (tool ran cleanly) but both H1 (FN near chunk-start) and H2 (FP sub-1s clustering) **did not generalize** dataset-wide (30.68%/31.68% vs ~30% baseline expectation) |
+| 2026-09-28 | `DiffGEBD` | `exp_002_val_overlap_context` (main, 2.5s overlap) | [diff_gebd/iter_01/exp_002_val_overlap_context](diff_gebd/iter_01/exp_002_val_overlap_context/) | `--val-overlap-seconds` 0.0 -> 2.5 on existing checkpoint | 0.2975 | 0.2427 | 0.3843 | Below all 3 seed-noise-floor runs (0.3435-0.3790) and shifted-window control (0.3594); iter_01 single-seed baseline was 0.4077 |
+| 2026-09-28 | `DiffGEBD` | `exp_003_min_peak_distance_suppression` (LOVO) | [diff_gebd/iter_01/exp_003_min_peak_distance_suppression](diff_gebd/iter_01/exp_003_min_peak_distance_suppression/) | Post-hoc `--min-peak-distance` (LOVO-tuned, candidates 0.5/1.0/1.5s) | 0.3807 | n/a | n/a | +0.0031 over no-suppression baseline (0.3776); simple threshold-sweep control (thr=0.8) alone reached 0.3780 |
 
 ---
 
@@ -40,19 +40,19 @@ Each model maintains its own isolated experiment hierarchy, configs, and output 
 
 ### 3.1. DDM-Net Track ([`experiments/step_segment/ddm_net/`](ddm_net/))
 - **Paradigm**: Dual-stream spatial RGB + dense difference motion (DDM) with Co-Transformer decoder.
-- **Reference Doc**: [`docs/step_segment/ddm_net.md`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/docs/step_segment/ddm_net.md)
+- **Reference Doc**: [`docs/step_segment/ddm_net.md`](file:///home/hungbm/ai4training/ai4training-aicore/docs/step_segment/ddm_net.md)
 - **Active Iteration**: [`iter_01`](ddm_net/iter_01/exp_001_baseline/)
 - **Outputs**: `outputs/step_segment/ddm_net/iter_XX/exp_YY/`
 
 ### 3.2. DiffGEBD Track ([`experiments/step_segment/diff_gebd/`](diff_gebd/))
 - **Paradigm**: Denoising diffusion generative model (DDPM/DDIM) conditioned on visual similarity + CFG.
-- **Reference Doc**: [`docs/step_segment/diff_gebd.md`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/docs/step_segment/diff_gebd.md)
+- **Reference Doc**: [`docs/step_segment/diff_gebd.md`](file:///home/hungbm/ai4training/ai4training-aicore/docs/step_segment/diff_gebd.md)
 - **Active Iteration**: [`iter_01`](diff_gebd/iter_01/exp_001_baseline/)
 - **Outputs**: `outputs/step_segment/diff_gebd/iter_XX/exp_YY/`
 
 ### 3.3. EfficientGEBD Track ([`experiments/step_segment/efficient_gebd/`](efficient_gebd/))
 - **Paradigm**: Temporal sliding-window Feature Pyramid Network + DiffFormer / DiffMixer dissimilarity.
-- **Reference Doc**: [`docs/step_segment/efficient_gebd.md`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/docs/step_segment/efficient_gebd.md)
+- **Reference Doc**: [`docs/step_segment/efficient_gebd.md`](file:///home/hungbm/ai4training/ai4training-aicore/docs/step_segment/efficient_gebd.md)
 - **Active Iteration**: [`iter_01`](efficient_gebd/iter_01/exp_001_baseline/)
 - **Outputs**: `outputs/step_segment/efficient_gebd/iter_XX/exp_YY/`
 

@@ -18,7 +18,7 @@
 
 ## Artifacts
 
-- [`eval_report.json`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/experiments/action_segment/iter_00_baseline/eval_report.json): Raw benchmark outputs across window thresholds (0.25s -> 2.0s) and per-video parameter options.
+- [`eval_report.json`](file:///home/hungbm/ai4training/ai4training-aicore/experiments/action_segment/iter_00_baseline/eval_report.json): Raw benchmark outputs across window thresholds (0.25s -> 2.0s) and per-video parameter options.
 - `evaluation_result_9cd.xlsx`: Excel export containing detailed per-operation breakdown.
 
 ## Observations for Next Iterations

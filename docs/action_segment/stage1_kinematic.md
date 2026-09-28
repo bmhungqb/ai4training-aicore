@@ -137,8 +137,8 @@ Comparison on Operation 1 (`chuyen1_segment.json`, 24 Ground Truth steps) before
 | **$\pm 1.50$s** | **100.0%** | **100.0%** | **363 / 363** | **100.0% (349/349)** | **100.0% (349/349)** | **0.297s** |
 
 ### 3.3. Evaluation Artifacts & Reproduction
-- Excel audit report: [`experiments/stage1_boundary_recall_9cd/evaluation_result_9cd.xlsx`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/experiments/stage1_boundary_recall_9cd/evaluation_result_9cd.xlsx)
-- JSON metrics file: [`experiments/stage1_boundary_recall_9cd/eval_report.json`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/experiments/stage1_boundary_recall_9cd/eval_report.json)
+- Excel audit report: [`experiments/stage1_boundary_recall_9cd/evaluation_result_9cd.xlsx`](file:///home/hungbm/ai4training/ai4training-aicore/experiments/stage1_boundary_recall_9cd/evaluation_result_9cd.xlsx)
+- JSON metrics file: [`experiments/stage1_boundary_recall_9cd/eval_report.json`](file:///home/hungbm/ai4training/ai4training-aicore/experiments/stage1_boundary_recall_9cd/eval_report.json)
 - Reproduction commands:
   ```bash
   python -m tools.eval_boundary_recall --no-tune --exclude-cd 11 --out experiments/stage1_boundary_recall_9cd/eval_report.json

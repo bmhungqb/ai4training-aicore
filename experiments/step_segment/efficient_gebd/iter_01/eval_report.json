@@ -1,0 +1,163 @@
+{
+  "track": "step_segment",
+  "iteration_id": "iter_01",
+  "exp_id": "exp_001_baseline",
+  "model_type": "efficient_gebd",
+  "output_dir": "outputs/step_segment/efficient_gebd/iter_01/exp_001_baseline",
+  "evaluation_timestamp": "2026-09-28T12:46:10.047701",
+  "primary_window": 0.5,
+  "tolerance_windows": [
+    0.25,
+    0.5,
+    1.0
+  ],
+  "primary_metrics": {
+    "macro_f1": 0.5760,
+    "macro_recall": 0.8809,
+    "macro_precision": 0.4279,
+    "f1_at_0_25s": 0.3483,
+    "f1_at_0_5s": 0.5760,
+    "f1_at_1_0s": 0.6334,
+    "total_gt": 445,
+    "total_pred": 916,
+    "total_tp": 392,
+    "total_fp": 524,
+    "total_fn": 53
+  },
+  "metrics_by_tolerance": {
+    "0.25": {
+      "macro_f1": 0.3483,
+      "recall": 0.5326,
+      "precision": 0.2587,
+      "tp": 237,
+      "num_gt": 445,
+      "num_pred": 916
+    },
+    "0.5": {
+      "macro_f1": 0.5760,
+      "recall": 0.8809,
+      "precision": 0.4279,
+      "tp": 392,
+      "num_gt": 445,
+      "num_pred": 916
+    },
+    "1.0": {
+      "macro_f1": 0.6334,
+      "recall": 0.9685,
+      "precision": 0.4705,
+      "tp": 431,
+      "num_gt": 445,
+      "num_pred": 916
+    }
+  },
+  "per_video_performance": {
+    "cd12_chuyen1": {
+      "f1": 0.4253,
+      "recall": 0.9038,
+      "precision": 0.2781,
+      "gt": 52,
+      "pred": 169,
+      "tp": 47
+    },
+    "cd4_chuyen1": {
+      "f1": 0.4615,
+      "recall": 1.0000,
+      "precision": 0.3000,
+      "gt": 9,
+      "pred": 30,
+      "tp": 9
+    },
+    "cd10_chuyen1": {
+      "f1": 0.4848,
+      "recall": 0.8889,
+      "precision": 0.3333,
+      "gt": 9,
+      "pred": 24,
+      "tp": 8
+    },
+    "cd5_chuyen3": {
+      "f1": 0.5321,
+      "recall": 0.8788,
+      "precision": 0.3816,
+      "gt": 33,
+      "pred": 76,
+      "tp": 29
+    },
+    "cd19_chuyen3": {
+      "f1": 0.5760,
+      "recall": 0.8182,
+      "precision": 0.4444,
+      "gt": 88,
+      "pred": 162,
+      "tp": 72
+    },
+    "cd6_chuyen2": {
+      "f1": 0.5865,
+      "recall": 0.7500,
+      "precision": 0.4815,
+      "gt": 52,
+      "pred": 81,
+      "tp": 39
+    },
+    "cd8_chuyen2": {
+      "f1": 0.6170,
+      "recall": 0.9587,
+      "precision": 0.4549,
+      "gt": 121,
+      "pred": 255,
+      "tp": 116
+    },
+    "cd10_chuyen2": {
+      "f1": 0.7000,
+      "recall": 0.9655,
+      "precision": 0.5490,
+      "gt": 29,
+      "pred": 51,
+      "tp": 28
+    },
+    "cd12_chuyen2": {
+      "f1": 0.7333,
+      "recall": 0.8462,
+      "precision": 0.6471,
+      "gt": 52,
+      "pred": 68,
+      "tp": 44
+    }
+  },
+  "error_cases": [
+    {
+      "case_id": "cd12_chuyen1_oversegmentation",
+      "category": "false_positive",
+      "description": "Video cd12_chuyen1 heavily over-segmented: 169 predictions vs 52 ground-truth boundaries (3.25x over-prediction ratio).",
+      "evidence_reference": "outputs/step_segment/efficient_gebd/iter_01/exp_001_baseline/predictions.json",
+      "metrics_impact": "Precision suppressed to 27.81%, resulting in the lowest per-video F1 score (42.53%) despite 90.38% recall."
+    },
+    {
+      "case_id": "cd4_chuyen1_oversegmentation",
+      "category": "false_positive",
+      "description": "Video cd4_chuyen1 exhibits 30 predictions for only 9 ground-truth boundaries (3.33x over-prediction ratio).",
+      "evidence_reference": "outputs/step_segment/efficient_gebd/iter_01/exp_001_baseline/predictions.json",
+      "metrics_impact": "Precision drops to 30.00% despite achieving 100.00% recall (9/9 TP)."
+    },
+    {
+      "case_id": "cd8_chuyen2_oversegmentation",
+      "category": "false_positive",
+      "description": "Video cd8_chuyen2 generated 255 predictions for 121 ground-truth boundaries, creating 139 false-positive detections.",
+      "evidence_reference": "outputs/step_segment/efficient_gebd/iter_01/exp_001_baseline/predictions.json",
+      "metrics_impact": "Precision capped at 45.49% despite capturing 116/121 true positive boundaries (95.87% recall)."
+    },
+    {
+      "case_id": "cd6_chuyen2_boundary_misses",
+      "category": "false_negative",
+      "description": "Video cd6_chuyen2 produced the lowest recall among all validation videos at 75.00% (13 missed boundaries out of 52 GT).",
+      "evidence_reference": "outputs/step_segment/efficient_gebd/iter_01/exp_001_baseline/predictions.json",
+      "metrics_impact": "Limits overall recall ceiling on complex, multi-stage sewing cycles."
+    }
+  ],
+  "factual_observations": [
+    "EfficientGEBD achieves 57.60% Macro F1 at 0.5s tolerance, outperforming DiffGEBD (40.77%) and DDM-Net (24.80%) on the same Chuyen 1 benchmark.",
+    "The model exhibits exceptionally high recall at 88.09% (392/445 true boundaries detected within 0.5s), scaling to 96.85% at 1.0s tolerance.",
+    "The dominant failure mode is over-segmentation and false-positive clustering: 916 total predictions were generated for 445 ground-truth boundaries (2.06x over-generation).",
+    "Across all 9 validation videos, recall ranges between 75.00% and 100.00%, while precision remains constrained between 27.81% and 64.71%."
+  ]
+}

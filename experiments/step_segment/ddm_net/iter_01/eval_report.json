@@ -1,0 +1,163 @@
+{
+  "track": "step_segment",
+  "iteration_id": "iter_01",
+  "exp_id": "exp_001_baseline",
+  "model_type": "ddm_net",
+  "output_dir": "outputs/step_segment/ddm_net/iter_01/exp_001_baseline",
+  "evaluation_timestamp": "2026-09-28T11:45:51.270542",
+  "primary_window": 0.5,
+  "tolerance_windows": [
+    0.25,
+    0.5,
+    1.0
+  ],
+  "primary_metrics": {
+    "macro_f1": 0.2480,
+    "macro_recall": 0.1708,
+    "macro_precision": 0.4524,
+    "f1_at_0_25s": 0.1468,
+    "f1_at_0_5s": 0.2480,
+    "f1_at_1_0s": 0.3817,
+    "total_gt": 445,
+    "total_pred": 168,
+    "total_tp": 76,
+    "total_fp": 92,
+    "total_fn": 369
+  },
+  "metrics_by_tolerance": {
+    "0.25": {
+      "macro_f1": 0.1468,
+      "recall": 0.1011,
+      "precision": 0.2679,
+      "tp": 45,
+      "num_gt": 445,
+      "num_pred": 168
+    },
+    "0.5": {
+      "macro_f1": 0.2480,
+      "recall": 0.1708,
+      "precision": 0.4524,
+      "tp": 76,
+      "num_gt": 445,
+      "num_pred": 168
+    },
+    "1.0": {
+      "macro_f1": 0.3817,
+      "recall": 0.2629,
+      "precision": 0.6964,
+      "tp": 117,
+      "num_gt": 445,
+      "num_pred": 168
+    }
+  },
+  "per_video_performance": {
+    "cd6_chuyen2": {
+      "f1": 0.0667,
+      "recall": 0.0385,
+      "precision": 0.2500,
+      "gt": 52,
+      "pred": 8,
+      "tp": 2
+    },
+    "cd5_chuyen3": {
+      "f1": 0.1429,
+      "recall": 0.1212,
+      "precision": 0.1739,
+      "gt": 33,
+      "pred": 23,
+      "tp": 4
+    },
+    "cd8_chuyen2": {
+      "f1": 0.1667,
+      "recall": 0.0992,
+      "precision": 0.5217,
+      "gt": 121,
+      "pred": 23,
+      "tp": 12
+    },
+    "cd12_chuyen1": {
+      "f1": 0.1972,
+      "recall": 0.1346,
+      "precision": 0.3684,
+      "gt": 52,
+      "pred": 19,
+      "tp": 7
+    },
+    "cd19_chuyen3": {
+      "f1": 0.2430,
+      "recall": 0.1477,
+      "precision": 0.6842,
+      "gt": 88,
+      "pred": 19,
+      "tp": 13
+    },
+    "cd4_chuyen1": {
+      "f1": 0.3077,
+      "recall": 0.4444,
+      "precision": 0.2353,
+      "gt": 9,
+      "pred": 17,
+      "tp": 4
+    },
+    "cd12_chuyen2": {
+      "f1": 0.3380,
+      "recall": 0.2308,
+      "precision": 0.6316,
+      "gt": 52,
+      "pred": 19,
+      "tp": 12
+    },
+    "cd10_chuyen2": {
+      "f1": 0.5600,
+      "recall": 0.4828,
+      "precision": 0.6667,
+      "gt": 29,
+      "pred": 21,
+      "tp": 14
+    },
+    "cd10_chuyen1": {
+      "f1": 0.5714,
+      "recall": 0.8889,
+      "precision": 0.4211,
+      "gt": 9,
+      "pred": 19,
+      "tp": 8
+    }
+  },
+  "error_cases": [
+    {
+      "case_id": "cd8_chuyen2_massive_underprediction",
+      "category": "false_negative",
+      "description": "Video cd8_chuyen2 generated only 23 predictions for 121 ground-truth boundaries (missed 109 boundaries, recall=9.92%).",
+      "evidence_reference": "outputs/step_segment/ddm_net/iter_01/exp_001_baseline/predictions.json",
+      "metrics_impact": "Severe recall suppression across long-sequence multi-cycle operations."
+    },
+    {
+      "case_id": "cd6_chuyen2_severe_boundary_dropout",
+      "category": "false_negative",
+      "description": "Video cd6_chuyen2 yielded only 8 predictions for 52 ground-truth boundaries, achieving a recall of only 3.85% (2/52 TP).",
+      "evidence_reference": "outputs/step_segment/ddm_net/iter_01/exp_001_baseline/predictions.json",
+      "metrics_impact": "Results in the lowest per-video F1 score (6.67%) across the entire benchmark."
+    },
+    {
+      "case_id": "cd19_chuyen3_sparse_predictions",
+      "category": "false_negative",
+      "description": "Video cd19_chuyen3 has 88 GT boundaries but received only 19 predictions, leaving 75 boundaries completely undetected.",
+      "evidence_reference": "outputs/step_segment/ddm_net/iter_01/exp_001_baseline/predictions.json",
+      "metrics_impact": "Limits recall to 14.77%, despite good precision (68.42%) on the few predicted peaks."
+    },
+    {
+      "case_id": "cd4_chuyen1_low_precision",
+      "category": "false_positive",
+      "description": "Video cd4_chuyen1 generated 17 predictions for 9 GT boundaries with only 4 TP, resulting in 23.53% precision.",
+      "evidence_reference": "outputs/step_segment/ddm_net/iter_01/exp_001_baseline/predictions.json",
+      "metrics_impact": "Precision degradation on shorter video clips."
+    }
+  ],
+  "factual_observations": [
+    "DDM-Net baseline achieves 24.80% Macro F1 at 0.5s tolerance on Chuyen 1 sewing operations, ranking 3rd behind EfficientGEBD (57.60%) and DiffGEBD (40.77%).",
+    "The model is heavily false-negative dominated: it emitted only 168 total predictions for 445 ground-truth boundaries (37.8% prediction density).",
+    "Precision (45.24% at 0.5s, scaling to 69.64% at 1.0s) is significantly higher than recall (17.08% at 0.5s), indicating that emitted detections are relatively reliable but highly conservative.",
+    "On videos with dense repetitive sewing boundaries (cd8_chuyen2, cd6_chuyen2, cd12_chuyen1, cd19_chuyen3), recall drops below 15.0% due to peak suppression or strict classification thresholding."
+  ]
+}
