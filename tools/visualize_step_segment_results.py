@@ -363,7 +363,23 @@ def main():
     out_dir = args.out_dir or (args.pred_file.parent / "visualizations")
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    if not pred_data:
+        print(f"\n[ERROR] The predictions file '{args.pred_file}' is empty (0 video entries)!")
+        print("Please check if the model inference completed and wrote predictions.\n")
+        return
+
     gt_map = load_all_ground_truth(args.data_dir)
+
+    def find_gt_info(video_id: str) -> dict:
+        if video_id in gt_map:
+            return gt_map[video_id]
+        clean_id = Path(video_id).stem
+        if clean_id in gt_map:
+            return gt_map[clean_id]
+        for k, v in gt_map.items():
+            if k == video_id or k.replace("-", "_") == video_id.replace("-", "_"):
+                return v
+        return {}
 
     # Determine videos to visualize
     target_vids = []
@@ -373,17 +389,22 @@ def main():
         # Score each video to find worst N
         scored = []
         for vid, preds in pred_data.items():
-            if vid in gt_map and gt_map[vid]["boundaries"]:
-                gt_b = gt_map[vid]["boundaries"]
+            gt_info = find_gt_info(vid)
+            gt_b = gt_info.get("boundaries", [])
+            if gt_b:
                 tp, fp, fn = match_boundaries(gt_b, preds, args.tolerance)
                 rec = len(tp) / len(gt_b) if gt_b else 0.0
                 prec = len(tp) / len(preds) if preds else 0.0
                 f1 = 2 * rec * prec / (rec + prec) if (rec + prec) else 0.0
                 scored.append((f1, len(fp) + len(fn), vid))
-        
-        # Sort ascending by F1, then descending by error count
-        scored.sort(key=lambda x: (x[0], -x[1]))
-        target_vids = [s[2] for s in scored[:args.top_n]]
+
+        if scored:
+            # Sort ascending by F1, then descending by error count
+            scored.sort(key=lambda x: (x[0], -x[1]))
+            target_vids = [s[2] for s in scored[:args.top_n]]
+        else:
+            print(f"   [INFO] Ground truth boundaries not matched for scoring; falling back to first {min(args.top_n, len(pred_data))} videos.")
+            target_vids = list(pred_data.keys())[:args.top_n]
 
     print("=" * 65)
     print(f" UNIFIED VISUALIZATION FOR STEP SEGMENTATION")
@@ -401,10 +422,26 @@ def main():
 
     for vid in target_vids:
         preds = pred_data.get(vid, [])
-        gt_info = gt_map.get(vid, {})
+        gt_info = find_gt_info(vid)
         gt_b = gt_info.get("boundaries", [])
         mp4_path = gt_info.get("mp4_path")
         duration = gt_info.get("duration", 60.0)
+
+        # Fallback to search video file in data_dir if mp4_path is missing
+        if not mp4_path or not mp4_path.exists():
+            clean_vid = Path(vid).stem
+            # try matching cd_chuyen patterns e.g. cd1_chuyen1 -> data/cd1/chuyen1/*.mp4
+            parts = clean_vid.split("_")
+            if len(parts) >= 2:
+                cd_dir = args.data_dir / parts[0] / parts[1]
+                if cd_dir.exists():
+                    v_files = list(cd_dir.glob("*.mp4"))
+                    if v_files:
+                        mp4_path = v_files[0]
+            if not mp4_path or not mp4_path.exists():
+                v_files = list(args.data_dir.rglob(f"*{clean_vid}*.mp4"))
+                if v_files:
+                    mp4_path = v_files[0]
 
         vid_out_dir = out_dir / vid
         vid_out_dir.mkdir(parents=True, exist_ok=True)
