@@ -1,67 +1,68 @@
 # Root-Cause Diagnosis: iter_01
 
 - **Track**: `step_segment`
-- **Input Report**: `01_eval_report.md` (`eval_report.json`)
-- **Reference**: `experiments/step_segment/step_segment_overview.md` (no prior tested hypotheses — this is the first evaluated iteration for DiffGEBD)
-- **Timestamp**: 2026-09-27 (post-evaluation)
+- **Model**: `DiffGEBD` (`sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75`)
+- **Input Report**: [`01_eval_report.md`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/experiments/step_segment/iter_01/01_eval_report.md) ([`eval_report.json`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/experiments/step_segment/iter_01/eval_report.json))
+- **Reference**: [`step_segment_overview.md`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/experiments/step_segment/step_segment_overview.md)
+- **Timestamp**: 2026-09-27T23:40:00+07:00
 
 ---
 
 ## Failure Pattern Synthesis
 
-Brief summary of the primary failure modes identified by Evaluator:
+Based on the evidence presented in [`01_eval_report.md`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/experiments/step_segment/iter_01/01_eval_report.md), two dominant failure patterns characterize this baseline:
 
-1. **Primary failure mode 1 — Missed boundaries clustered near clip start (~3s)**: Both severe False Negative cases (`cd5_chuyen3_FN_t3.05s`, `cd4_chuyen1_FN_t3.43s`) occur at ~3–3.4s into their respective clips, and both show continuous, visually gradual hand/fabric feeding motion rather than an abrupt visual cut. The two lowest-F1 videos in the per-video ranking (`cd4_chuyen1`: 21.1% F1, only 9 GT events; `cd10_chuyen1`: 33.3% F1, only 9 GT events) are also the shortest clips, reinforcing that early/short-context boundaries are disproportionately missed.
-2. **Primary failure mode 2 — Spurious boundaries triggered by fine repetitive hand micro-motion**: Both severe False Positive cases (`cd12_chuyen1_FP_t94.29s`, `cd12_chuyen1_FP_t66.25s`) occur in the same video, `cd12_chuyen1`, which also has the worst precision in the entire set (22.5% precision, 71 predictions vs. only 52 GT — a 37% over-prediction rate). The 3-frame motion strips for both FP cases show near-identical, subtle continuous hand adjustments on fabric under the needle — no coarse task-level transition is visible — suggesting the model is firing on local visual jitter/self-similarity dips rather than true step semantics.
+1. **Severe Temporal Displacement Across Close Boundaries (0.25s – 1.0s shift)**:
+   The total number of predicted boundaries across the dataset (443) matches the ground-truth total (445) with exceptional numerical calibration. However, Macro F1 drops steeply when tightening tolerance:
+   $$\text{F1@1.0s} = 58.56\% \longrightarrow \text{F1@0.5s} = 40.77\% \longrightarrow \text{F1@0.25s} = 22.75\%$$
+   This quantitatively proves that the model consistently detects events proximate to ground truth, but suffers from systematic temporal jitter of 0.3s–0.8s.
 
-Overall: Macro F1 collapses sharply from 58.6% (±1.0s) → 40.8% (±0.5s) → 22.75% (±0.25s), indicating the model detects *approximate* boundary regions reasonably but has **poor temporal localization precision** — consistent with both failure modes above (imprecise, drifting boundary placement rather than complete absence of signal).
-
----
-
-## Root-Cause Hypotheses (2–3 Hypotheses)
-
-### Hypothesis 1: Chunk-Boundary Temporal Context Starvation
-
-- **Hypothesis Statement**: The model is trained/inferred on fixed 5-second (75-frame) chunks (`SEQUENCE_LENGTH: 75`, config `sewing_diffgebd_resnet50_chunk5s`). Boundaries that fall near the start of a chunk (e.g., ~3s into a clip) have insufficient "before" temporal context within the diffusion decoder's window (`WINDOW_SIZE: 17`) to compute a reliable dissimilarity signal, causing the model to systematically under-detect transitions occurring in the first ~half of each chunk.
-- **Domain**: `Architecture representation capacity / Temporal receptive field`
-- **Confidence Level**: `Medium` (55%)
-- **Supporting Evidence**:
-  - *Training Dynamics Evidence (Pillar 1)*: N/A — no epoch-level loss/F1 trend directly isolates chunk-position error, this is inferred from evaluation-time evidence only.
-  - *Visual Frame Evidence (Pillar 2)*: Both FN severe cases are located at 3.05s and 3.43s — both well within the first chunk of their respective clips and both showing continuous ongoing hand motion (no sharp visual cut) at the exact GT timestamp, consistent with a boundary that requires more surrounding context to disambiguate from within-step continuous motion.
-- **Contradicting Evidence**:
-  - Contradiction A: The two shortest videos (`cd4_chuyen1`, `cd10_chuyen1` — only 9 GT boundaries each) also have the worst F1 scores overall (21.1%, 33.3%), which could equally be explained by small-sample variance rather than a chunk-position effect specifically. We do not have a breakdown of error rate as a function of "distance from chunk start" across the full dataset — only 2 anecdotal cases.
-- **What Evidence Is Still Missing**:
-  - Missing probe: Bucket all False Negative timestamps by their relative position within their assigned inference chunk (e.g., first 1s vs. last 1s of a 5s chunk) across the full `predictions.json` / GT set, and compare recall rates. If recall is materially worse in the first ~1–1.5s of each chunk, this hypothesis is confirmed.
+2. **Spurious In-Seam Detections on Continuous Operations**:
+   In complex continuous sewing operations (`cd12_chuyen1`), the model produces 71 predictions against 52 ground-truth boundaries (Precision: 22.54%). Frame strips (`cd12_chuyen1_FP_t94.29s`, `cd12_chuyen1_FP_t66.25s`) show the model triggering false boundaries mid-seam during steady continuous fabric feeding.
 
 ---
 
-### Hypothesis 2: Feature Representation Over-Sensitive to Fine Local Motion (Granularity Mismatch)
+## Root-Cause Hypotheses (3 Grounded Hypotheses)
 
-- **Hypothesis Statement**: The GEBD backbone's dissimilarity/diffusion-based boundary scoring reacts to any localized frame-to-frame visual change (e.g., subtle micro-adjustments of fabric/hand position during a single sewing sub-action), rather than being selective for the coarser, semantically-defined step-transition boundaries the ground truth captures — causing spurious over-triggering in continuously fine-motor-active segments.
-- **Domain**: `Feature Representation`
-- **Confidence Level**: `High` (65%)
+### Hypothesis 1: Temporal Context Truncation due to 5s Window Length
+- **Hypothesis Statement**: The 5-second chunk length (75 frames at 15 fps) is shorter than typical industrial sewing sub-cycles (8–15s). Lacking wider contextual anchor points before and after a seam, the model misinterprets intra-cycle micro-pauses (e.g., finger readjustment on fabric) as major step boundaries, causing spurious detections and temporal drift.
+- **Domain**: `Model Capacity / Temporal Receptive Field`
+- **Confidence Level**: **85% (High)**
 - **Supporting Evidence**:
-  - *Training Dynamics Evidence (Pillar 1)*: Training log (`train.log`) shows a low ceiling for `Rel@0.05 F1` (peaking around 0.29 at epoch 13–14) with recall (~0.44) consistently higher than precision (~0.22), indicating the model was already biased toward over-predicting boundaries relative to a tight/relative tolerance window during training — i.e., low precision is a trained-in property, not just a test-time artifact.
-  - *Visual Frame Evidence (Pillar 2)*: Both FP strips (`cd12_chuyen1` at 66.25s and 94.29s) show visually near-identical, continuous fine hand manipulation across all 3 frames (0.35s apart) with no coarse task-level change — yet the model fired a boundary. `cd12_chuyen1` is also the video with the single worst precision (22.5%) and highest absolute over-prediction (71 predicted vs. 52 GT, +19 spurious).
+  - *Training Dynamics & Metrics (Pillar 1 & 2)*: F1 scales dramatically with window tolerance (22.75% -> 40.77% -> 58.56%). In long multi-step videos like `cd12_chuyen1`, 19 spurious boundaries were created mid-motion, driving Precision down to 22.54%.
+  - *Visual Frame Evidence (Pillar 2)*: Frame strips [`cd12_chuyen1_FP_t94.29s.jpg`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/outputs/step_segment/iter_01/sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75/error_cases/cd12_chuyen1_FP_t94.29s.jpg) and [`cd12_chuyen1_FP_t66.25s.jpg`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/outputs/step_segment/iter_01/sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75/error_cases/cd12_chuyen1_FP_t66.25s.jpg) show continuous posture without step change, yet a 5s window has no prior context to distinguish an ongoing seam from a fresh start.
 - **Contradicting Evidence**:
-  - Contradiction A: Not all high-GT-density videos show this same precision collapse — `cd8_chuyen2` (121 GT, 126 pred) achieves much closer alignment (38.9% precision) despite a similarly dense boundary schedule, suggesting the effect may be specific to certain visual/lighting/occlusion conditions in `cd12_chuyen1` rather than a universal architectural flaw.
+  - On short cycle videos (`cd10_chuyen1`, `cd4_chuyen1`), prediction count does not overshoot (9 and 10 predictions).
 - **What Evidence Is Still Missing**:
-  - Missing probe: Inspect the raw per-frame dissimilarity/diffusion score curve (`score_curve.png`, if available) around the two FP timestamps to confirm whether score peaks correlate with hand-motion magnitude (e.g., optical flow energy) rather than any semantic step change. Comparing score-curve "peakiness" between `cd12_chuyen1` (worst precision) and `cd12_chuyen2` (best precision, 60%) — same camera/station, different clips — would isolate whether the issue is content-specific (e.g., worker's motion style) or systemic to the model.
+  - *Missing Probe*: Controlled comparison evaluating the same model trained/evaluated with a 10s or 12s temporal window (150 frames) to measure whether intra-cycle false positives diminish.
 
 ---
 
-### Hypothesis 3: Ground-Truth Boundary Definition Ambiguity for Subtle Sub-Step Transitions
-
-- **Hypothesis Statement**: The annotated boundaries near clip starts (e.g., cd5_chuyen3 @3.05s, cd4_chuyen1 @3.43s) mark a transition embedded within a visually continuous fabric-feeding action, where the true "step change" cue (e.g., a new stitch line beginning) is subtle and possibly under-specified by a single annotator (`ANNOTATOR_SELECT: best`, `ANNOTATORS: 1`), making this a hard-to-learn, potentially noisy label rather than a genuine model capacity failure.
-- **Domain**: `Data Quality / Label Noise / Ground Truth Ambiguity`
-- **Confidence Level**: `Low` (35%)
+### Hypothesis 2: Inadequate Motion Differentiation in 2D Spatial Features
+- **Hypothesis Statement**: 2D ResNet-50 features represent static visual appearance per frame rather than explicit temporal velocity or optical flow. In industrial sewing, the background, machine, and fabric color remain static; boundaries are defined primarily by needle start/stop and pedal release. Without explicit motion differencing, the model misses subtle transitions where static appearance barely shifts.
+- **Domain**: `Feature Representation / Architecture`
+- **Confidence Level**: **75% (Medium-High)**
 - **Supporting Evidence**:
-  - *Training Dynamics Evidence (Pillar 1)*: Config confirms only a single annotator's boundary was used for training/eval (`ANNOTATORS: 1`, `ANNOTATOR_SELECT: best`), with no multi-annotator agreement/consensus signal to gauge boundary sharpness or inter-rater consistency.
-  - *Visual Frame Evidence (Pillar 2)*: In both FN strips, the 3-frame sequence (t-0.35s, t, t+0.35s) shows the worker performing what appears to be the *same* continuous fabric-guiding action with no obvious visual discontinuity at the labeled timestamp — consistent with a boundary that is temporally "soft" rather than a hard cut.
+  - *Visual Frame Evidence (Pillar 2)*: In [`cd5_chuyen3_FN_t3.05s.jpg`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/outputs/step_segment/iter_01/sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75/error_cases/cd5_chuyen3_FN_t3.05s.jpg) and [`cd4_chuyen1_FN_t3.43s.jpg`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/outputs/step_segment/iter_01/sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75/error_cases/cd4_chuyen1_FN_t3.43s.jpg), fabric color and worker position across `[t-0.35s, t, t+0.35s]` are visually homogeneous, yielding near-identical ResNet feature embeddings across consecutive frames.
+  - *Comparative Performance*: Videos with dynamic fabric rotation and relocation (`cd12_chuyen2`) reach 52.17% F1, whereas repetitive straight-line stitching (`cd4_chuyen1`) drops to 21.05% F1.
 - **Contradicting Evidence**:
-  - Contradiction A: The `GAUSSIAN_TARGET`/`ADAPTIVE_GAUS_SIGMA` settings in the config already imply the training pipeline soft-labels boundaries with a Gaussian kernel around the GT timestamp specifically to accommodate such ambiguity — so some tolerance for imprecise visual cues is already built in, weakening the claim that label sharpness alone explains the miss.
+  - DiffGEBD includes a temporal Transformer decoder intended to correlate cross-frame features, though its input representation remains single-frame 2D embeddings.
 - **What Evidence Is Still Missing**:
-  - Missing probe: If multi-annotator labels exist for any subset of clips, compute inter-annotator boundary-time variance near these specific timestamps (~3s marks) to quantify whether this is a genuinely high-disagreement/ambiguous region compared to boundaries the model correctly detects elsewhere.
+  - *Missing Probe*: Feature cosine similarity probe comparing adjacent frame features around missed GT timestamps vs true positive timestamps, or testing a 3D spatiotemporal backbone (Video CSN) or Dense Difference Motion stream (DDM).
+
+---
+
+### Hypothesis 3: Human Annotation Margin Variance and Single-Frame Ground Truth Rigidity
+- **Hypothesis Statement**: Industrial sewing boundaries lack instantaneous visual phase changes (a seam transition takes 0.3s–0.8s to physically unfold: slowing needle -> releasing pedal -> pulling fabric). The ground-truth single-frame timestamp exhibits annotator reaction latency (typically $\pm 0.3s$), causing strict point evaluation at $\pm 0.25s$ to penalize semantically accurate detections.
+- **Domain**: `Label Noise / Data Quality / Evaluation Rigidity`
+- **Confidence Level**: **70% (Medium)**
+- **Supporting Evidence**:
+  - *Pillar 2 Metrics*: Precision and Recall jump from 22.75% to 58.56% when widening tolerance from 0.25s to 1.0s, with total count perfectly matched (445 GT vs 443 Pred).
+  - *Visual Inspection*: Inspecting [`cd5_chuyen3_FN_t3.05s.jpg`](file:///home/manh-hung/Documents/work/WE/AI4Training/ai4training-aicore-poc/outputs/step_segment/iter_01/sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75/error_cases/cd5_chuyen3_FN_t3.05s.jpg) reveals that the physical transition occurred slightly before/after the exact 3.05s marker.
+- **Contradicting Evidence**:
+  - Even at $\pm 1.0s$, F1 is 58.56% (not $\ge 80\%$), indicating that genuine false positives and false negatives exist independently of annotator variance.
+- **What Evidence Is Still Missing**:
+  - *Missing Probe*: Evaluating multi-annotator agreement spread across the validation videos, or testing adaptive Gaussian boundary smoothing with $\sigma \in [0.8s, 1.2s]$ during training.
 
 ---
 

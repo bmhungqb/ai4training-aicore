@@ -10,8 +10,8 @@
 
 | Rank | Model Architecture | Experiment ID | Backbone | Macro F1 (0.5s) | Recall (0.5s) | Precision (0.5s) | F1 @ 0.25s | F1 @ 1.0s | Status |
 | :---: | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| 1 | **DiffGEBD** | [`exp_001_baseline`](iter_01/01_eval_report.md) | ResNet-50 | **40.77%** | **40.67%** | **40.86%** | 22.75% | 58.56% | Evaluated (Baseline) |
 | - | **EfficientGEBD** | [`exp_001_baseline`](efficient_gebd/iter_01/exp_001_baseline/) | ResNet-50 | - | - | - | - | - | Ready to benchmark |
-| - | **DiffGEBD** | [`exp_001_baseline`](diff_gebd/iter_01/exp_001_baseline/) | ResNet-50 | - | - | - | - | - | Chunked baseline ready |
 | - | **DDM-Net** | [`exp_001_baseline`](ddm_net/iter_01/exp_001_baseline/) | ResNet-50 | - | - | - | - | - | Aux re-weighted ready |
 
 *Target Criteria for Champion Model*: Macro F1 $\ge 65.0\%$ at $\pm 0.5$s, Inference speed $\ge 25$ fps, VRAM $\le 8$GB.
@@ -24,8 +24,8 @@
 
 | Timestamp | Model | Experiment ID | Path / Config | Key Tested Variable | Macro F1 (0.5s) | Recall | Precision | Verdict / Notes |
 | :--- | :--- | :--- | :--- | :--- | :---: | :---: | :---: | :--- |
+| 2026-09-27 | `DiffGEBD` | `exp_001_baseline` | [report](iter_01/01_eval_report.md) | 5s chunking + ann=1 single-frame label fix | **40.77%** | 40.67% | 40.86% | Evaluated. Balanced Prec/Rec; temporal shift 0.25-1.0s. |
 | Planned | `EfficientGEBD` | `exp_001_baseline` | [config.yaml](efficient_gebd/iter_01/exp_001_baseline/config.yaml) | 10s slice sampling + `POS_WEIGHT: 4.5` | - | - | - | Pending Human execution |
-| Planned | `DiffGEBD` | `exp_001_baseline` | [config.yaml](diff_gebd/iter_01/exp_001_baseline/config.yaml) | 12s overlapping chunks + CFG 7.0 | - | - | - | Pending Human execution |
 | Planned | `DDM-Net` | `exp_001_baseline` | [config.yaml](ddm_net/iter_01/exp_001_baseline/config.yaml) | Weighted aux heads (`main + 0.3*aux`) | - | - | - | Pending Human execution |
 | 2026-09-28 | `DiffGEBD` | `exp_000_training_health_audit` | [iter_01/exp_000_training_health_audit](iter_01/exp_000_training_health_audit/) | Log-only audit of `train.log` restart segments vs `model_best.pth` | n/a | n/a | n/a | `WARN`: 3 restart segments found; global-best epoch 6/segment 1 (Rel@0.05 F1=0.2946) confirmed as `model_best.pth`, no divergence |
 | 2026-09-28 | `DiffGEBD` | `exp_000b_aggregate_error_histograms` | [iter_01/exp_000b_aggregate_error_histograms](iter_01/exp_000b_aggregate_error_histograms/) | Dataset-wide FN/FP distribution vs. anecdotal n=2 hypotheses | n/a | n/a | n/a | `PASS` (tool ran cleanly) but both H1 (FN near chunk-start) and H2 (FP sub-1s clustering) **did not generalize** dataset-wide (30.68%/31.68% vs ~30% baseline expectation) |

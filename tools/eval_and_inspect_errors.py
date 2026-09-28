@@ -65,8 +65,10 @@ def parse_training_log(log_path: Path) -> dict:
         re.compile(r"Epoch[:\s]+(?P<epoch>\d+).*?(?:loss|total_loss)[:\s=]+(?P<loss>[\d\.]+)", re.IGNORECASE),
         re.compile(r"loss[:\s=]+(?P<loss>[\d\.]+).*?Epoch[:\s]+(?P<epoch>\d+)", re.IGNORECASE),
         re.compile(r"Epoch\s*(?P<epoch>\d+)/\d+.*?loss:\s*(?P<loss>[\d\.]+)", re.IGNORECASE),
+        re.compile(r"(?:loss|total_loss|MSE)[:\s=]+(?P<loss>[\d\.]+)", re.IGNORECASE),
     ]
-    f1_pattern = re.compile(r"(?:F1|f1_at_0\.5s|macro_f1)[:\s=]+(?P<f1>[\d\.]+)", re.IGNORECASE)
+    epoch_pattern = re.compile(r"Epoch[:\s]+(?P<epoch>\d+)", re.IGNORECASE)
+    f1_pattern = re.compile(r"(?:Rel@0\.05\s*F1|f1_at_0\.5s|macro_f1|F1)[:\s=]+(?P<f1>[\d\.]+)", re.IGNORECASE)
     lr_pattern = re.compile(r"(?:lr|learning_rate)[:\s=]+(?P<lr>[\d\.eE\-]+)", re.IGNORECASE)
     rec_pattern = re.compile(r"(?:Rec|recall)[:\s=]+(?P<rec>[\d\.]+)", re.IGNORECASE)
     prec_pattern = re.compile(r"(?:Prec|precision)[:\s=]+(?P<prec>[\d\.]+)", re.IGNORECASE)
@@ -82,21 +84,27 @@ def parse_training_log(log_path: Path) -> dict:
         # Check for epoch & loss
         loss_val = None
         epoch_idx = None
-        for p in loss_patterns:
-            m = p.search(line)
-            if m:
-                epoch_idx = int(m.group("epoch"))
-                loss_val = float(m.group("loss"))
-                break
+        
+        epoch_m = epoch_pattern.search(line)
+        if epoch_m:
+            epoch_idx = int(epoch_m.group("epoch"))
+            for p in loss_patterns:
+                m = p.search(line)
+                if m and "loss" in m.groupdict():
+                    loss_val = float(m.group("loss"))
+                    break
 
         if epoch_idx is not None:
             if epoch_idx != current_epoch:
                 if epoch_entry:
                     epochs_data.append(epoch_entry)
                 current_epoch = epoch_idx
-                epoch_entry = {"epoch": current_epoch, "loss": loss_val}
+                epoch_entry = {"epoch": current_epoch}
+                if loss_val is not None:
+                    epoch_entry["loss"] = loss_val
             else:
-                epoch_entry["loss"] = loss_val
+                if loss_val is not None:
+                    epoch_entry["loss"] = loss_val
 
         # Check F1 / Recall / Precision / LR
         f1_m = f1_pattern.search(line)
