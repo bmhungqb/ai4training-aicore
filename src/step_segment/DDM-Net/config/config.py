@@ -106,6 +106,9 @@ def get_system_defaults() -> DictConfig:
             'num_nodes': 1,
             'strategy': 'auto',
             'dry_run': False,
+            'early_stopping': False,
+            'early_stopping_patience': 5,
+            'early_stopping_min_delta': 0.0,
         },
         'logging': {}
     })
@@ -270,6 +273,12 @@ def get_parser():
                         help=f'Resume path (default: {t_cfg.resume})')
     parser.add_argument('--checkpoint-top-k', type=int, default=argparse.SUPPRESS, 
                         help=f'Checkpoint top K (default: {t_cfg.checkpoint_top_k})')
+    parser.add_argument('--early-stopping', action='store_true', default=argparse.SUPPRESS,
+                        help=f'Enable early stopping on the eval metric (default: {t_cfg.early_stopping})')
+    parser.add_argument('--early-stopping-patience', type=int, default=argparse.SUPPRESS,
+                        help=f'Epochs with no improvement before stopping (default: {t_cfg.early_stopping_patience})')
+    parser.add_argument('--early-stopping-min-delta', type=float, default=argparse.SUPPRESS,
+                        help=f'Minimum change to qualify as improvement (default: {t_cfg.early_stopping_min_delta})')
 
     # ============================================================================
     # Distributed
@@ -405,7 +414,7 @@ def merge_configs(args: argparse.Namespace) -> DictConfig:
         'amp', 'model_ema', 'model_ema_decay', 'model_ema_start_epoch',
         'eval_metric', 'save_visualizations', 'log_interval', 'output', 'exp_name',
         'resume', 'checkpoint_top_k', 'num_gpus', 'num_nodes', 'strategy',
-        'dry_run'
+        'dry_run', 'early_stopping', 'early_stopping_patience', 'early_stopping_min_delta'
     ]
 
     for key in training_keys:

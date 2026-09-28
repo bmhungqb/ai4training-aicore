@@ -64,18 +64,22 @@ def _chunk_grid(vid: str, meta: dict, chunk_frames: int, overlap_frames: int, mi
 
 
 def chunk_video(vid: str, meta: dict, chunk_frames: int, overlap_frames: int, min_chunk_frames: int,
-                 fps: float, is_train: bool, train_offsets: list[float]):
+                 fps: float, is_train: bool, train_offsets: list[float], val_offset_s: float = 0.0):
     """Yield (chunk_vid, start_frame, end_frame, local_boundaries) for one video.
 
     For `is_train` videos, repeats the sliding-window grid once per offset in
     `train_offsets` (multi-grid temporal jittering augmentation), each grid
     getting a distinct `__grid<g>` name suffix. For val (or when only one
-    offset is given), a single grid starting at frame 1 is used.
+    offset is given), a single grid starting at frame 1 is used, UNLESS
+    `val_offset_s` > 0 (exp_002_val_overlap_context Step 0.5 shifted-single-
+    window isolation control: shifts the single non-overlapping val grid so
+    edge-adjacent GT boundaries sit mid-chunk, without introducing multiple
+    overlapping predictions per timestamp).
     """
     if not is_train:
-        # val: single, fixed grid at offset 0 (no augmentation).
+        grid_start = 1 + round(val_offset_s * fps)
         yield from _chunk_grid(vid, meta, chunk_frames, overlap_frames, min_chunk_frames,
-                                grid_start=1, name_suffix="")
+                                grid_start=grid_start, name_suffix="")
         return
 
     if len(train_offsets) <= 1:
@@ -111,6 +115,7 @@ def build_chunked_annotation(
     rng: random.Random,
     is_train: bool,
     train_offsets: list[float],
+    val_offset_s: float = 0.0,
 ) -> dict:
     chunked: dict = {}
     for vid, meta in annotation.items():
@@ -125,7 +130,7 @@ def build_chunked_annotation(
             continue
 
         for chunk_vid, start, end, local_boundaries in chunk_video(
-            vid, meta, chunk_frames, overlap_frames, min_chunk_frames, fps, is_train, train_offsets
+            vid, meta, chunk_frames, overlap_frames, min_chunk_frames, fps, is_train, train_offsets, val_offset_s
         ):
             if apply_drop and not local_boundaries and drop_negative_ratio > 0:
                 if rng.random() < drop_negative_ratio:
@@ -166,6 +171,10 @@ def main() -> None:
     parser.add_argument("--train-offsets", type=str, default="0.0",
                          help="Comma-separated list of grid start offsets (seconds), applied to the train split only "
                               "(multi-grid temporal jittering augmentation). val always uses a single offset=0 grid.")
+    parser.add_argument("--val-offset-seconds", type=float, default=0.0,
+                         help="exp_002 Step 0.5 shifted-single-window control: shifts the single (still non-overlapping) "
+                              "val grid start by this many seconds, so edge-adjacent GT boundaries sit mid-chunk instead "
+                              "of near-edge, WITHOUT introducing overlapping/duplicate predictions. Default 0.0 = unmodified.")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
@@ -192,6 +201,7 @@ def main() -> None:
             rng=rng,
             is_train=(split == "train"),
             train_offsets=train_offsets,
+            val_offset_s=args.val_offset_seconds,
         )
 
         n_pos = sum(1 for c in chunked.values() if c["substages_myframeidx"][0])

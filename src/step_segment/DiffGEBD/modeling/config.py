@@ -99,6 +99,12 @@ _C.DIFFUSION.SAMPLING_TIMESTEPS = 16
 _C.DIFFUSION.VALIDATION_TIMESTEPS = [0]
 _C.DIFFUSION.DDIM_SAMPLING_ETA = 0.0
 _C.DIFFUSION.SNR_SCALE = 0.5
+# exp_004_deterministic_noise_seeding (iter_02): if True, ddim_sample()'s
+# initial noise draw is seeded per-sample from hash(video_id, chunk_index)
+# via a local torch.Generator, instead of consuming the single global RNG
+# stream in input-count-dependent order. Default False preserves legacy
+# behavior exactly (unaffected by this flag being defined).
+_C.DIFFUSION.DETERMINISTIC_SAMPLE_SEEDING = False
 # ---------------------------------------------------------------------------- #
 # TEST
 # ---------------------------------------------------------------------------- #

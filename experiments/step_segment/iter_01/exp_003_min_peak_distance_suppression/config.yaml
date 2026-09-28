@@ -1,0 +1,28 @@
+experiment_id: exp_003_min_peak_distance_suppression
+track: step_segment
+iteration_id: iter_01
+parent_baseline_id: sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75
+model_type: diff_gebd
+
+description: "Post-processing greedy min-peak-distance suppression on the SAME raw score pickle (model_pred_dict_ep-1.pkl), no re-inference. Step 0 runs the existing tools/sweep_diffgebd_threshold.py as a zero-new-code control first (Occam's Razor). Min-peak-distance is tuned via Leave-One-Video-Out (LOVO) cross-validation, not direct val-set sweeping, per Debater's Threshold/Hyperparameter Leakage critique."
+
+# Existing raw prediction pickle -- fixed, no re-inference needed
+pred_pkl: "src/step_segment/DiffGEBD/output/sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75/model_pred_dict_ep-1.pkl"
+dataset_dir: "data/diff_gebd_dataset"
+
+# Step 0: simple-threshold-sweep control (existing tool, zero new code)
+threshold_sweep_control:
+  thresholds: [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+  merge_eps: 0.3
+  tolerance: 0.5
+
+# Main: LOVO-tuned min-peak-distance suppression
+lovo_tuning:
+  base_threshold: 0.5
+  candidates_seconds: [0.5, 1.0, 1.5]
+  tolerance: 0.5
+
+# Worker/station leakage joint-reporting requirement (Debater FAIL critique)
+worker_station_joint_report:
+  - cd12_chuyen1
+  - cd12_chuyen2

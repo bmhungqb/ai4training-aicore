@@ -17,6 +17,7 @@ data_result/
 ddm_dataset/
 src/step_segment/*/data
 outputs/
+output/
 runs/
 *.ckpt
 *.pt
@@ -24,3 +25,5 @@ runs/
 /tmp
 
 
+experiments/diffgebd_preds/
+output_lightning/

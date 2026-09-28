@@ -80,4 +80,11 @@ _C.TEST.RELDIS_THRESHOLD = 0.05
 _C.TEST.MIN_PEAK_DIST = 1  # min frame gap between two reported boundaries inside one
                            # above-threshold run (recall/precision tradeoff, see eval.py)
 
+# ---------------------------------------------------------------------------- #
+# Early Stopping
+# ---------------------------------------------------------------------------- #
+_C.SOLVER.EARLY_STOPPING = False
+_C.SOLVER.EARLY_STOPPING_PATIENCE = 5  # epochs with no F1 improvement before stopping
+_C.SOLVER.EARLY_STOPPING_MIN_DELTA = 0.0  # minimum F1 gain to count as improvement
+
 _C.OUTPUT_DIR = 'output'

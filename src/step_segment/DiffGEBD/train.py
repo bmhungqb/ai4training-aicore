@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import os
 import pickle
 import time
@@ -222,7 +223,24 @@ def validate_end_to_end(cfg, args, model, device, data_loader, epoch):
             
             num_frames += (targets.shape[0] * targets.shape[1])
 
-            outputs = model(samples, targets, sampling_timesteps=cfg.DIFFUSION.SAMPLING_TIMESTEPS)  # (b, t)
+            sample_seeds = None
+            if getattr(cfg.DIFFUSION, 'DETERMINISTIC_SAMPLE_SEEDING', False):
+                # exp_004_deterministic_noise_seeding: derive a stable,
+                # sample-identifying seed per batch row from hash(video_id,
+                # chunk_index) -- independent of global RNG stream order /
+                # total chunk count, so it no longer depends on
+                # --val-overlap-seconds. chunk_index falls back to the
+                # starting frame index when unavailable (still stable per vid).
+                sample_seeds = []
+                for batch_idx, vid in enumerate(inputs['vid']):
+                    chunk_idx = inputs.get('chunk_idx', [None] * len(inputs['vid']))[batch_idx] \
+                        if 'chunk_idx' in inputs else int(inputs['frame_indices'][batch_idx][0])
+                    key = f"{vid}::{chunk_idx}"
+                    seed = int(hashlib.sha256(key.encode('utf-8')).hexdigest()[:8], 16)
+                    sample_seeds.append(seed)
+
+            outputs = model(samples, targets, sampling_timesteps=cfg.DIFFUSION.SAMPLING_TIMESTEPS,
+                             sample_seeds=sample_seeds)  # (b, t)
             for batch_idx, frame_indices in enumerate(inputs['frame_indices']):
                 vid = inputs['vid'][batch_idx]
                 scores = outputs[batch_idx]

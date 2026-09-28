@@ -1,0 +1,13 @@
+experiment_id: exp_000_training_health_audit
+track: step_segment
+iteration_id: iter_01
+model_type: diff_gebd
+
+description: "BLOCKING GATE (zero-cost, CPU-only): audit train.log for the iter_01 baseline to verify model_best.pth corresponds to the true global-best epoch across all restart segments, before trusting Exp 1/2 comparisons against it."
+
+# Read-only inputs (no re-training, no re-inference)
+inputs:
+  train_log: "outputs/step_segment/iter_01/sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75/train.log"
+  pred_dir: "src/step_segment/DiffGEBD/output/sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75"
+
+# Not a performance experiment: no eval_params / training_params (diagnostic gate only)

@@ -634,6 +634,7 @@ def main(cfg, args):
     # Restore best_f1 from the resumed checkpoint (if present) so a genuine resume
     # doesn't overwrite a better checkpoint with a worse one from a fresh best_f1=0.
     best_f1 = state_dict.get('best_f1', 0.) if args.resume else 0.
+    epochs_no_improve = 0
     for epoch in range(start_epoch + 1, cfg.SOLVER.MAX_EPOCHS):
         train_one_epoch(cfg, args, model, device, optimizer, train_data_loader, summary_writer, auto_cast, loss_scaler, epoch)
         metrics_list = validate(cfg, args, model, device, val_data_loader, epoch)
@@ -646,7 +647,7 @@ def main(cfg, args):
             f1 = metrics_list['F1'] if cfg.TEST.DYNAMIC else metrics_list[-1]['F1']
             save_path = os.path.join(output_dir, 'model_best.pth')
             saved_this_epoch = False
-            if f1 > best_f1:
+            if f1 > best_f1 + cfg.SOLVER.EARLY_STOPPING_MIN_DELTA:
                 model_state_dict = model.module.state_dict() if isinstance(model, DistributedDataParallel) else model.state_dict()
                 # save_path = os.path.join(output_dir, 'model_best.pth')
                 torch.save({
@@ -659,6 +660,9 @@ def main(cfg, args):
                 }, save_path)
                 best_f1 = f1
                 saved_this_epoch = True
+                epochs_no_improve = 0
+            else:
+                epochs_no_improve += 1
             with open(os.path.join(output_dir, 'metrics.txt'), 'a') as f:
                 if cfg.TEST.DYNAMIC:
                     content = 'Dynamic inference, F1: {:.4f}, Rec: {:.4f}, Prec: {:.4f}'.format(
@@ -673,6 +677,11 @@ def main(cfg, args):
                 print('Saved to {}'.format(save_path))
             else:
                 print('F1 {:.4f} did not improve over best {:.4f}, not saving.'.format(f1, best_f1))
+
+            if cfg.SOLVER.EARLY_STOPPING and epochs_no_improve >= cfg.SOLVER.EARLY_STOPPING_PATIENCE:
+                print('Early stopping: no F1 improvement for {} epochs (patience={}). Stopping at epoch {}.'.format(
+                    epochs_no_improve, cfg.SOLVER.EARLY_STOPPING_PATIENCE, epoch))
+                break
 
 
 def init_seeds(seed, cuda_deterministic=True):

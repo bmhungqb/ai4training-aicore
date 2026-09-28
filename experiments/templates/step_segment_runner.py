@@ -99,6 +99,12 @@ def run_ddm_net(config: dict, output_dir: Path, mode: str, num_gpus: int, env: d
             cmd.extend(["--learning-rate", str(train_cfg["learning_rate"])])
         if "aux_loss_weight" in train_cfg:
             cmd.append(f"training_config.aux_loss_weight={train_cfg['aux_loss_weight']}")
+        if train_cfg.get("early_stopping"):
+            cmd.append("--early-stopping")
+            if "early_stopping_patience" in train_cfg:
+                cmd.extend(["--early-stopping-patience", str(train_cfg["early_stopping_patience"])])
+            if "early_stopping_min_delta" in train_cfg:
+                cmd.extend(["--early-stopping-min-delta", str(train_cfg["early_stopping_min_delta"])])
 
         logger.info(f"Executing DDM-Net Training: {' '.join(cmd)}")
         subprocess.run(cmd, cwd=str(ddm_dir), env=env, check=True)
@@ -207,6 +213,12 @@ def run_efficient_gebd(config: dict, output_dir: Path, mode: str, num_gpus: int,
             cmd.extend(["SOLVER.LR", str(train_cfg["learning_rate"])])
         if "batch_size" in train_cfg:
             cmd.extend(["SOLVER.BATCH_SIZE", str(train_cfg["batch_size"])])
+        if train_cfg.get("early_stopping"):
+            cmd.extend(["SOLVER.EARLY_STOPPING", "True"])
+            if "early_stopping_patience" in train_cfg:
+                cmd.extend(["SOLVER.EARLY_STOPPING_PATIENCE", str(train_cfg["early_stopping_patience"])])
+            if "early_stopping_min_delta" in train_cfg:
+                cmd.extend(["SOLVER.EARLY_STOPPING_MIN_DELTA", str(train_cfg["early_stopping_min_delta"])])
 
         logger.info(f"Executing EfficientGEBD Training: {' '.join(cmd)}")
         subprocess.run(cmd, cwd=str(eff_dir), env=env, check=True)
@@ -473,6 +485,12 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
                 cmd.extend(["--learning-rate", str(train_cfg["learning_rate"])])
             if "aux_loss_weight" in train_cfg:
                 cmd.append(f"training_config.aux_loss_weight={train_cfg['aux_loss_weight']}")
+            if train_cfg.get("early_stopping"):
+                cmd.append("--early-stopping")
+                if "early_stopping_patience" in train_cfg:
+                    cmd.extend(["--early-stopping-patience", str(train_cfg["early_stopping_patience"])])
+                if "early_stopping_min_delta" in train_cfg:
+                    cmd.extend(["--early-stopping-min-delta", str(train_cfg["early_stopping_min_delta"])])
             print(f"   Working Directory: {ddm_dir}")
             print(f"   Execution Command: {' '.join(cmd)}")
         elif mode == "infer":
@@ -533,6 +551,12 @@ def dry_run_check(config: dict, output_dir: Path, mode: str, num_gpus: int, env:
                 cmd.extend(["SOLVER.LR", str(train_cfg["learning_rate"])])
             if "batch_size" in train_cfg:
                 cmd.extend(["SOLVER.BATCH_SIZE", str(train_cfg["batch_size"])])
+            if train_cfg.get("early_stopping"):
+                cmd.extend(["SOLVER.EARLY_STOPPING", "True"])
+                if "early_stopping_patience" in train_cfg:
+                    cmd.extend(["SOLVER.EARLY_STOPPING_PATIENCE", str(train_cfg["early_stopping_patience"])])
+                if "early_stopping_min_delta" in train_cfg:
+                    cmd.extend(["SOLVER.EARLY_STOPPING_MIN_DELTA", str(train_cfg["early_stopping_min_delta"])])
             print(f"   Working Directory: {eff_dir}")
             print(f"   Execution Command: {' '.join(cmd)}")
         elif mode == "infer":

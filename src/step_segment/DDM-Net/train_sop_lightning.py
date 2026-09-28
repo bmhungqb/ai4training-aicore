@@ -44,7 +44,7 @@ import torch.nn.functional as F
 import torch.distributed as dist
 
 import lightning as L
-from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, Callback, TQDMProgressBar
+from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, Callback, TQDMProgressBar, EarlyStopping
 from lightning.pytorch.strategies import DDPStrategy
 from lightning.pytorch.plugins.environments import SLURMEnvironment
 
@@ -787,6 +787,18 @@ def main():
     # Learning rate monitor
     lr_monitor = LearningRateMonitor(logging_interval='step')
     callbacks.append(lr_monitor)
+
+    # Early stopping (monitors the same metric as checkpointing)
+    if not dry_run and train_cfg.get('early_stopping', False):
+        early_stop_metric = f"val/{train_cfg['eval_metric']}"
+        early_stop_mode = 'min' if 'loss' in train_cfg['eval_metric'].lower() else 'max'
+        callbacks.append(EarlyStopping(
+            monitor=early_stop_metric,
+            mode=early_stop_mode,
+            patience=train_cfg.get('early_stopping_patience', 5),
+            min_delta=train_cfg.get('early_stopping_min_delta', 0.0),
+            verbose=True,
+        ))
 
     # EMA callback
     if train_cfg['model_ema']:

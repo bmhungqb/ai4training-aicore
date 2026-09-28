@@ -75,6 +75,48 @@ def get_boundary_frame_indices(threshold: float, frame_idx: list[int], scores: l
     return boundaries
 
 
+def get_boundary_frame_indices_with_scores(threshold: float, frame_idx: list[int], scores: list[float]) -> list[tuple[int, float]]:
+    """Same grouping as get_boundary_frame_indices, but also returns each
+    boundary's peak score within its group (max score across the group),
+    needed for min-peak-distance suppression (exp_003)."""
+    groups: list[list[int]] = []
+    current: list[int] = []
+    n = len(scores)
+    for i in range(n):
+        if scores[i] >= threshold:
+            current.append(i)
+        elif current:
+            groups.append(current)
+            current = []
+        if i == n - 1 and current:
+            groups.append(current)
+
+    out = []
+    for group in groups:
+        center = round(sum(group) / len(group))
+        peak_score = max(scores[i] for i in group)
+        out.append((frame_idx[center], peak_score))
+    return out
+
+
+def suppress_min_peak_distance(boundary_ts_scores: list[tuple[float, float]], min_distance_s: float) -> list[float]:
+    """Greedy min-distance peak suppression (exp_003_min_peak_distance_suppression).
+
+    Sort candidate boundaries by peak score descending; keep a boundary only if
+    it is more than `min_distance_s` seconds away from all already-kept
+    (higher-scoring) boundaries. Operates on (timestamp, score) pairs already
+    remapped to the source video's global time reference.
+    """
+    if min_distance_s <= 0 or not boundary_ts_scores:
+        return [t for t, _ in boundary_ts_scores]
+    ordered = sorted(boundary_ts_scores, key=lambda x: x[1], reverse=True)
+    kept: list[float] = []
+    for t, _score in ordered:
+        if all(abs(t - k) > min_distance_s for k in kept):
+            kept.append(t)
+    return kept
+
+
 def load_annotation(dataset_dir: Path, split: str) -> dict:
     ann_path = dataset_dir / f"{split}_annotation.pkl"
     with open(ann_path, "rb") as f:
@@ -204,21 +246,27 @@ def scores_to_preds_json(
     chunked_annotation: dict,
     threshold: float,
     merge_eps: float = 0.3,
+    min_peak_distance: float = 0.0,
 ) -> dict[str, list[float]]:
     """Threshold raw per-frame scores into boundary timestamps per source video.
 
     Pure function (no I/O) so it can be swept over many threshold values, e.g.
     by tools/sweep_diffgebd_threshold.py, without re-reading the pickle/annotation
     for every candidate threshold.
+
+    If `min_peak_distance` > 0 (exp_003_min_peak_distance_suppression), applies
+    greedy min-distance peak suppression (keep highest-scoring peak within the
+    window) per source video, after remapping/merging, instead of the plain
+    merge_close_boundaries averaging.
     """
-    # video_id -> accumulated global-timestamp boundaries (chunked predictions
-    # are mapped back to the source video's frame/time reference and merged;
-    # plain (non-chunked) predictions pass straight through).
-    boundaries_by_source: dict[str, list[float]] = {}
+    # video_id -> accumulated global-timestamp (boundary, peak_score) pairs
+    # (chunked predictions are mapped back to the source video's frame/time
+    # reference; plain (non-chunked) predictions pass straight through).
+    boundaries_by_source: dict[str, list[tuple[float, float]]] = {}
 
     for vid, pred in model_pred_dict.items():
         chunk_meta = chunked_annotation.get(vid)
-        boundary_frames = get_boundary_frame_indices(threshold, pred["frame_idx"], pred["scores"])
+        boundary_frames_scores = get_boundary_frame_indices_with_scores(threshold, pred["frame_idx"], pred["scores"])
 
         if chunk_meta is not None:
             # Chunked video: remap local (chunk) frame indices -> global frame
@@ -227,9 +275,10 @@ def scores_to_preds_json(
             source_vid = chunk_meta["source_vid"]
             chunk_start = int(chunk_meta["chunk_start_frame"])
             fps = float(chunk_meta["fps"])
-            global_frames = [chunk_start + f - 1 for f in boundary_frames]
-            boundary_ts = [round((f - 1) / fps, 3) for f in global_frames]
-            boundaries_by_source.setdefault(source_vid, []).extend(boundary_ts)
+            for f, score in boundary_frames_scores:
+                global_frame = chunk_start + f - 1
+                ts = round((global_frame - 1) / fps, 3)
+                boundaries_by_source.setdefault(source_vid, []).append((ts, score))
         else:
             meta = annotation.get(vid)
             if meta is None:
@@ -237,16 +286,21 @@ def scores_to_preds_json(
             fps = float(meta["fps"])
             # frame_idx is 1-indexed (ffmpeg frame%d.jpg convention), same as
             # tools/prepare_diff_gebd_dataset.py::build_annotation.
-            boundary_ts = [round((f - 1) / fps, 3) for f in boundary_frames]
-            boundaries_by_source.setdefault(vid, []).extend(boundary_ts)
+            for f, score in boundary_frames_scores:
+                ts = round((f - 1) / fps, 3)
+                boundaries_by_source.setdefault(vid, []).append((ts, score))
 
     preds_json: dict[str, list[float]] = {}
-    for source_vid, boundary_ts in boundaries_by_source.items():
+    for source_vid, ts_scores in boundaries_by_source.items():
         meta = annotation.get(source_vid)
         if meta is None:
             continue
-        merged_ts = merge_close_boundaries(boundary_ts, eps=merge_eps)
-        preds_json[source_vid] = merged_ts
+        if min_peak_distance > 0:
+            kept_ts = suppress_min_peak_distance(ts_scores, min_peak_distance)
+            preds_json[source_vid] = sorted(kept_ts)
+        else:
+            merged_ts = merge_close_boundaries([t for t, _ in ts_scores], eps=merge_eps)
+            preds_json[source_vid] = merged_ts
     return preds_json
 
 
@@ -260,6 +314,8 @@ def main() -> None:
     parser.add_argument("--viz", action="store_true", help="Render annotated.mp4 and score_curve.png like EfficientGEBD")
     parser.add_argument("--merge-eps", type=float, default=0.35,
                          help="Merge boundaries within this many seconds (handles duplicate detections from overlapping/multi-grid chunks); 0.3-0.4s recommended for 5s chunks with 1.0s overlap")
+    parser.add_argument("--min-peak-distance", type=float, default=0.0,
+                         help="exp_003: greedy min-distance peak suppression (seconds). If >0, keeps only the highest-scoring peak within this window per source video, instead of merge-eps averaging. 0 (default) disables and preserves legacy merge-eps behavior.")
     args = parser.parse_args()
 
     with open(args.pred_pkl, "rb") as f:
@@ -268,7 +324,7 @@ def main() -> None:
     annotation = load_annotation(args.dataset_dir, args.split)
     chunked_annotation = load_chunked_annotation(args.dataset_dir, args.split)
 
-    preds_json = scores_to_preds_json(model_pred_dict, annotation, chunked_annotation, args.threshold, args.merge_eps)
+    preds_json = scores_to_preds_json(model_pred_dict, annotation, chunked_annotation, args.threshold, args.merge_eps, args.min_peak_distance)
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
 

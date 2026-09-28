@@ -1,0 +1,52 @@
+experiment_id: exp_002_val_overlap_context
+track: step_segment
+iteration_id: iter_01
+parent_baseline_id: sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75
+model_type: diff_gebd
+
+description: "Restore pre-boundary temporal context at val inference time via overlapping val chunks (--val-overlap-seconds 2.5), on the EXISTING trained checkpoint (no retraining). Includes Step 0 seed-variance noise-floor control and Step 0.5 shifted-single-window isolation control, per Debater's Non-Determinism and Variable-Isolation critiques."
+
+# Existing checkpoint / config -- fixed across all runs in this experiment
+diffgebd_config_file: "src/step_segment/DiffGEBD/config/sewing_diffgebd_resnet50_chunk5s.yaml"
+checkpoint: "src/step_segment/DiffGEBD/output/sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75/model_best.pth"
+dataset_dir: "data/diff_gebd_dataset"
+
+# Step 0: seed-variance noise-floor control -- re-run UNMODIFIED baseline
+# (val-overlap-seconds=0.0, the current on-disk val_annotation_chunked.pkl)
+# 3x with different seeds to establish how much Macro F1 swings from pure
+# DDIM/CFG sampling stochasticity alone (DIFFUSION.DETERMINISTIC: false).
+noise_floor_control:
+  seeds: [42, 123, 2024]
+  val_overlap_seconds: 0.0  # unmodified baseline chunking, only seed changes
+
+# Step 0.5: shifted single-window control -- non-overlapping grid shifted
+# +2.0s so edge-adjacent GT boundaries sit mid-chunk, WITHOUT multi-view
+# averaging / merge_close_boundaries being exercised.
+shifted_window_control:
+  grid_start_offset_s: 2.0
+  val_overlap_seconds: 0.0  # still non-overlapping, just shifted
+  seed: 42
+
+# Main treatment: overlapping val chunks (entangled context + multi-view-averaging effect)
+main_run:
+  val_overlap_seconds: 2.5
+  seed: 42
+
+chunk_params:
+  chunk_seconds: 5.0
+  overlap_seconds: 1.0  # train overlap, kept fixed/untouched throughout
+
+export_params:
+  threshold: 0.5
+  merge_eps: 0.35
+
+eval_params:
+  primary_window: 0.5
+  tolerance_windows: [0.25, 0.5, 1.0]
+
+# Severe FN cases to specifically track (from 02_diagnosis.md)
+severe_fn_cases_to_track:
+  - video: cd5_chuyen3
+    gt_time_s: 3.05
+  - video: cd4_chuyen1
+    gt_time_s: 3.43

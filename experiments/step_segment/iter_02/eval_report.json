@@ -1,0 +1,91 @@
+{
+  "track": "step_segment",
+  "iteration_id": "iter_02",
+  "evaluated_source_iteration": "iter_01",
+  "evaluation_scope": "Meta-evaluation of the 4 approved iter_01 follow-up experiments (exp_000, exp_000b, exp_002, exp_003) against the iter_01 baseline (sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75).",
+  "baseline_reference": {
+    "exp_id": "sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75",
+    "macro_f1_0_5s": 0.4077,
+    "recall_0_5s": 0.4067,
+    "precision_0_5s": 0.4086,
+    "f1_0_25s": 0.2275,
+    "f1_1_0s": 0.5856
+  },
+  "exp_000_training_health_audit": {
+    "status": "WARN",
+    "n_restart_segments": 3,
+    "global_best_epoch": 6,
+    "global_best_segment": 1,
+    "global_best_f1": 0.2946,
+    "model_best_pth_exists": true,
+    "full_chronological_curve_f1": [0.2184, 0.2304, 0.0818, 0.1699, 0.2169, 0.2859, 0.2174, 0.2741, 0.2946, 0.2301, 0.2745, 0.2684, 0.2533, 0.2784, 0.2536, 0.2697, 0.292, 0.2834],
+    "notes": "train.log is a concatenation of 3 restart segments (epoch numbers reset twice). No NaN/divergence found in reconstructed curve. Segment 1 epoch 6 (f1=0.2946, Rel@0.05 metric, NOT the multi-tolerance metric used elsewhere) is the global best training-time checkpoint value found in the log. Segment 2's subsequent 8 epochs (7 through 14) never exceed 0.2946."
+  },
+  "exp_000b_aggregate_error_histograms": {
+    "status": "PASS",
+    "fn_total": 264,
+    "fn_near_chunk_start": 81,
+    "fn_near_chunk_start_fraction": 0.3068,
+    "expected_uniform_near_start_fraction": 0.3,
+    "hypothesis_1_generalizes": false,
+    "fp_total": 262,
+    "fp_sub_1s_from_nearest": 83,
+    "fp_sub_1s_fraction": 0.3168,
+    "hypothesis_2_generalizes": false,
+    "verdict": {
+      "exp_002_val_overlap_context": "DE-PRIORITIZE (FN rate not materially higher near chunk-starts dataset-wide)",
+      "exp_003_min_peak_distance_suppression": "DE-PRIORITIZE (FP-to-nearest-prediction distances not concentrated sub-1s dataset-wide)"
+    }
+  },
+  "exp_002_val_overlap_context": {
+    "step0_noise_floor_seeds": {
+      "seed42":   {"macro_f1_0_5s": 0.379,  "recall": 0.3483, "precision": 0.4155},
+      "seed123":  {"macro_f1_0_5s": 0.3553, "recall": 0.3146, "precision": 0.4082},
+      "seed2024": {"macro_f1_0_5s": 0.3435, "recall": 0.3034, "precision": 0.3959}
+    },
+    "noise_floor_range_macro_f1": [0.3435, 0.379],
+    "noise_floor_spread": 0.0355,
+    "step0_5_shifted_window": {"macro_f1_0_5s": 0.3594, "recall": 0.3303, "precision": 0.3941},
+    "main_overlap_run": {"macro_f1_0_5s": 0.2975, "recall": 0.2427, "precision": 0.3843, "num_pred": 281},
+    "per_video_cd12_comparison": {
+      "cd12_chuyen1": {
+        "seed42": {"f1": 0.3103, "recall": 0.3462, "precision": 0.2812},
+        "seed123": {"f1": 0.2881, "recall": 0.3269, "precision": 0.2576},
+        "seed2024": {"f1": 0.3077, "recall": 0.3462, "precision": 0.2769},
+        "shifted_window": {"f1": 0.2931, "recall": 0.3269, "precision": 0.2656},
+        "main_overlap_run": {"f1": 0.2885, "recall": 0.2885, "precision": 0.2885, "num_pred": 52}
+      },
+      "cd12_chuyen2": {
+        "seed42": {"f1": 0.4944, "recall": 0.4231, "precision": 0.5946},
+        "seed123": {"f1": 0.5128, "recall": 0.3846, "precision": 0.7692},
+        "seed2024": {"f1": 0.5, "recall": 0.4038, "precision": 0.6562},
+        "shifted_window": {"f1": 0.5843, "recall": 0.5, "precision": 0.7027},
+        "main_overlap_run": {"f1": 0.411, "recall": 0.2885, "precision": 0.7143, "num_pred": 21}
+      }
+    }
+  },
+  "exp_003_min_peak_distance_suppression": {
+    "step0_threshold_sweep_control": {
+      "0.3": {"recall": 0.3416, "precision": 0.4086, "f1": 0.3721},
+      "0.4": {"recall": 0.3461, "precision": 0.4129, "f1": 0.3765},
+      "0.5": {"recall": 0.3483, "precision": 0.4122, "f1": 0.3776},
+      "0.6": {"recall": 0.3461, "precision": 0.4118, "f1": 0.3761},
+      "0.7": {"recall": 0.3461, "precision": 0.4118, "f1": 0.3761},
+      "0.8": {"recall": 0.3483, "precision": 0.4133, "f1": 0.378},
+      "best_threshold": 0.8,
+      "best_f1": 0.378
+    },
+    "lovo_min_peak_distance": {
+      "baseline_f1_no_suppression": 0.3776,
+      "lovo_aggregate_f1": 0.3807,
+      "improvement": 0.0031,
+      "candidates_tested": [0.5, 1.0, 1.5],
+      "selected_min_peak_distance_per_fold": 0.5,
+      "fold_held_out_f1_range": [0.25, 0.5176],
+      "worker_leakage_check_cd12": {
+        "cd12_chuyen1": {"f1_at_0_5s": 0.3091, "recall": 0.3269, "precision": 0.2931},
+        "cd12_chuyen2": {"f1_at_0_5s": 0.5176, "recall": 0.4231, "precision": 0.6667}
+      }
+    }
+  }
+}

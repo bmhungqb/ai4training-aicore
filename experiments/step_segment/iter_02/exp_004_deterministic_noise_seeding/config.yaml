@@ -1,0 +1,42 @@
+experiment_id: exp_004_deterministic_noise_seeding
+track: step_segment
+iteration_id: iter_02
+parent_baseline_id: sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75
+model_type: diff_gebd
+
+description: "Corrective intervention (NOT a diagnostic-only measurement): fixes the single remaining stochastic source in DDIM sampling (ddim_sample()'s initial x_time = torch.randn(...) draw) by seeding it deterministically per-sample (hash(video_id, chunk_index)) via a local torch.Generator, instead of consuming the global RNG stream in input-count-dependent order. Gated behind new config flag DIFFUSION.DETERMINISTIC_SAMPLE_SEEDING (default False, preserves legacy behavior exactly). Directly addresses Hypothesis 1 by removing the noise source rather than measuring it."
+
+diffgebd_config_file: "src/step_segment/DiffGEBD/config/sewing_diffgebd_resnet50_chunk5s.yaml"
+checkpoint: "src/step_segment/DiffGEBD/output/sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75/model_best.pth"
+dataset_dir: "data/diff_gebd_dataset"
+
+# New config override applied to ALL runs in this experiment
+config_overrides:
+  - "DIFFUSION.DETERMINISTIC_SAMPLE_SEEDING"
+  - "True"
+
+# Verification 1: same chunking (overlap=0.0), 2 different GLOBAL --seed
+# values -- should now produce identical/near-identical Macro F1, since the
+# per-sample initial noise no longer depends on global RNG stream order.
+verification_baseline_repeat:
+  val_overlap_seconds: 0.0
+  seeds: [42, 123]
+
+# Verification 2 (optional spot-check): overlap=2.5 config, confirm the
+# per-sample noise draw (keyed by video_id + chunk_index) is now independent
+# of total chunk count / other chunks preceding it in the run.
+verification_overlap_spotcheck:
+  val_overlap_seconds: 2.5
+  seed: 42
+
+chunk_params:
+  chunk_seconds: 5.0
+  overlap_seconds: 1.0
+
+export_params:
+  threshold: 0.5
+  merge_eps: 0.35
+
+eval_params:
+  primary_window: 0.5
+  tolerance_windows: [0.25, 0.5, 1.0]

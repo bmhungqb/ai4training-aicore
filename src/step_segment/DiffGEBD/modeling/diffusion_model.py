@@ -274,11 +274,18 @@ class DiffusionMSE(Module):
 
         return x
 
-    def forward(self, imgs, targets=None, sampling_timesteps=None):
+    def forward(self, imgs, targets=None, sampling_timesteps=None, sample_seeds=None):
         """
         Args:
             imgs: imgs (B, T, C, H, W);
             targets: (B, T);
+            sample_seeds: optional list[int] of length B (exp_004_deterministic_noise_seeding).
+                If provided (inference only), each batch row's initial DDIM
+                noise draw is seeded deterministically from a per-sample key
+                (e.g. hash(video_id, chunk_index)) via a local torch.Generator,
+                instead of consuming the single global RNG stream in
+                input-count-dependent order. If None, falls back to the
+                original global-stream-order-dependent behavior (unchanged).
         Returns:
         """
         backbone_feat = self.backbone_forward(imgs) # B nl C T
@@ -333,7 +340,7 @@ class DiffusionMSE(Module):
             loss_dict = {'loss': loss}
             return loss_dict
         else:
-            scores = self.ddim_sample(cond, sampling_timesteps) # [B, T]
+            scores = self.ddim_sample(cond, sampling_timesteps, sample_seeds=sample_seeds) # [B, T]
         return scores
     
     def prepare_targets(self, targets):
@@ -365,7 +372,7 @@ class DiffusionMSE(Module):
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
     
     @torch.no_grad()
-    def ddim_sample(self, cond, sampling_timesteps):
+    def ddim_sample(self, cond, sampling_timesteps, sample_seeds=None):
         if len(cond.shape) == 3:
             T, B, C = cond.shape
         else:
@@ -378,7 +385,22 @@ class DiffusionMSE(Module):
         time_pairs = list(zip(times[:-1], times[1:]))
 
         shape = (B, 1, T)
-        x_time = torch.randn(shape, device=self.device)
+        if sample_seeds is not None:
+            # exp_004_deterministic_noise_seeding: draw each batch row's
+            # initial noise independently from a per-sample-seeded local
+            # generator, so it no longer depends on global RNG stream order
+            # (i.e. no longer depends on how many other samples were drawn
+            # before it, which changes with --val-overlap-seconds chunk count).
+            assert len(sample_seeds) == B, f"sample_seeds length {len(sample_seeds)} must match batch size {B}"
+            row_shape = (1, 1, T)
+            rows = []
+            for seed in sample_seeds:
+                gen = torch.Generator(device=self.device)
+                gen.manual_seed(int(seed))
+                rows.append(torch.randn(row_shape, device=self.device, generator=gen))
+            x_time = torch.cat(rows, dim=0)
+        else:
+            x_time = torch.randn(shape, device=self.device)
         x_start = None
         
         for time, time_next in time_pairs:

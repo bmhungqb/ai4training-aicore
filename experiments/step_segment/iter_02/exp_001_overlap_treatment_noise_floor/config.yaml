@@ -1,0 +1,42 @@
+experiment_id: exp_001_overlap_treatment_noise_floor
+track: step_segment
+iteration_id: iter_02
+parent_baseline_id: sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75
+model_type: diff_gebd
+
+description: "Establish a 3-seed noise floor for the val-overlap=2.5 TREATMENT condition (Hypothesis 1), reusing the existing seed=42 main_overlap_run (Macro F1=0.2975) as the 1st data point and adding 2 more seeds (123, 2024). Run AFTER exp_002_premerge_boundary_audit per Debater's stated execution order. Per Revision 2, the two 3-seed samples (baseline noise floor vs. this overlap-treatment noise floor) are treated as INDEPENDENT/UNPAIRED distributions, not seed-matched pairs."
+
+# Existing checkpoint / config -- fixed across all runs in this experiment
+diffgebd_config_file: "src/step_segment/DiffGEBD/config/sewing_diffgebd_resnet50_chunk5s.yaml"
+checkpoint: "src/step_segment/DiffGEBD/output/sewing_diffgebd_resnet50_chunk5s_ann1_dim512_len75/model_best.pth"
+dataset_dir: "data/diff_gebd_dataset"
+
+# Treatment condition held FIXED at val-overlap-seconds=2.5 (opposite of
+# iter_01 exp_002's noise_floor_control, which fixed overlap=0.0 and varied seed)
+overlap_treatment:
+  val_overlap_seconds: 2.5
+  # seed=42 is NOT re-run here -- its result is already on disk at
+  # outputs/step_segment/iter_01/exp_002_val_overlap_context/main_overlap_run/
+  # and is copied by reference into this experiment's report as the 1st data point.
+  new_seeds: [123, 2024]
+
+# Reference baseline (overlap=0.0) 3-seed noise floor, already measured in iter_01
+baseline_noise_floor_reference:
+  macro_f1_range: [0.3435, 0.3790]
+  source: "outputs/step_segment/iter_01/exp_002_val_overlap_context/step0_noise_floor_seed{42,123,2024}/metrics.json"
+
+existing_seed42_reference:
+  macro_f1: 0.2975
+  source: "outputs/step_segment/iter_01/exp_002_val_overlap_context/main_overlap_run/metrics.json"
+
+chunk_params:
+  chunk_seconds: 5.0
+  overlap_seconds: 1.0  # train overlap, kept fixed/untouched throughout
+
+export_params:
+  threshold: 0.5
+  merge_eps: 0.35
+
+eval_params:
+  primary_window: 0.5
+  tolerance_windows: [0.25, 0.5, 1.0]
