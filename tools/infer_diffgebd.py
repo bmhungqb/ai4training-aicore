@@ -92,6 +92,22 @@ def run_single_inference(
         export_cmd.append("--viz")
 
     subprocess.run(export_cmd, cwd=str(repo_root), check=True)
+
+    if viz:
+        print(f"\n [Viz] Rendering unified score curves and annotated videos for {split}...")
+        viz_cmd = [
+            sys.executable,
+            str(repo_root / "tools" / "visualize_step_segment_results.py"),
+            "--pred-file",
+            str(out_dir / "predictions.json"),
+            "--out-dir",
+            str(out_dir / "visualizations"),
+            "--top-n",
+            "5",
+            "--render-video",
+        ]
+        subprocess.run(viz_cmd, cwd=str(repo_root), check=False)
+
     print(f"✓ Split '{split}' complete! Predictions saved to -> {out_dir}")
 
 
