@@ -290,15 +290,17 @@ def scores_to_preds_json(
                 ts = round((f - 1) / fps, 3)
                 boundaries_by_source.setdefault(vid, []).append((ts, score))
 
-    preds_json: dict[str, list[float]] = {}
+    # Initialize all source videos from annotation so every video has an entry
+    preds_json: dict[str, list[float]] = {vid: [] for vid in annotation.keys()}
     for source_vid, ts_scores in boundaries_by_source.items():
-        meta = annotation.get(source_vid)
-        if meta is None:
-            continue
-        if min_peak_distance > 0:
-            kept_ts = suppress_min_peak_distance(ts_scores, min_peak_distance)
-            preds_json[source_vid] = sorted(kept_ts)
-        else:
+        if source_vid in preds_json:
+            if min_peak_distance > 0:
+                kept_ts = suppress_min_peak_distance(ts_scores, min_peak_distance)
+                preds_json[source_vid] = sorted(kept_ts)
+            else:
+                merged_ts = merge_close_boundaries([t for t, _ in ts_scores], eps=merge_eps)
+                preds_json[source_vid] = merged_ts
+        elif source_vid in annotation:
             merged_ts = merge_close_boundaries([t for t, _ in ts_scores], eps=merge_eps)
             preds_json[source_vid] = merged_ts
     return preds_json
