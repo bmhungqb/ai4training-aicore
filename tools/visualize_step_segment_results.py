@@ -236,8 +236,9 @@ def render_annotated_video(
     out_path: Path,
     tol: float = 0.5,
     max_duration: float = 120.0,
+    pause_seconds: float = 1.0,
 ):
-    """Renders annotated video using OpenCV or FFmpeg overlay."""
+    """Renders annotated video using OpenCV or FFmpeg overlay, pausing on predicted boundaries."""
     out_path.parent.mkdir(parents=True, exist_ok=True)
     
     try:
@@ -255,6 +256,15 @@ def render_annotated_video(
 
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         writer = cv2.VideoWriter(str(out_path), fourcc, fps, (width, height))
+
+        # Precompute target frame for each predicted boundary
+        pred_frame_map = {}
+        for p in sorted(pred_bounds):
+            f = int(round(p * fps))
+            if f not in pred_frame_map:
+                pred_frame_map[f] = p
+
+        pause_frames = max(1, int(round(pause_seconds * fps))) if pause_seconds > 0 else 0
 
         for f_idx in range(max_frames):
             ret, frame = cap.read()
@@ -280,16 +290,42 @@ def render_annotated_video(
 
             # Banner if near boundary
             if near_gt and near_pred:
-                cv2.rectangle(frame, (width - 320, 5), (width - 10, 45), (46, 139, 87), -1)
-                cv2.putText(frame, "MATCHED BOUNDARY", (width - 305, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                cv2.rectangle(frame, (width - 340, 5), (width - 10, 45), (46, 139, 87), -1)
+                cv2.putText(frame, "MATCHED BOUNDARY (TP)", (width - 330, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
             elif near_pred and not near_gt:
-                cv2.rectangle(frame, (width - 320, 5), (width - 10, 45), (0, 140, 255), -1)
-                cv2.putText(frame, "FALSE POSITIVE", (width - 290, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                cv2.rectangle(frame, (width - 340, 5), (width - 10, 45), (0, 140, 255), -1)
+                cv2.putText(frame, "FALSE POSITIVE (FP)", (width - 325, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
             elif near_gt and not near_pred:
-                cv2.rectangle(frame, (width - 320, 5), (width - 10, 45), (0, 0, 205), -1)
-                cv2.putText(frame, "MISSED GT BOUNDARY", (width - 310, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                cv2.rectangle(frame, (width - 340, 5), (width - 10, 45), (0, 0, 205), -1)
+                cv2.putText(frame, "MISSED GT BOUNDARY (FN)", (width - 335, 32), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
 
             writer.write(frame)
+
+            # If current frame is an exact predicted boundary -> FREEZE / PAUSE for pause_seconds
+            if pause_frames > 0 and f_idx in pred_frame_map:
+                p_time = pred_frame_map[f_idx]
+                is_matched = any(abs(p_time - g) <= tol for g in gt_bounds)
+                border_color = (46, 139, 87) if is_matched else (0, 140, 255)
+
+                freeze_frame = frame.copy()
+                # Frame border highlight
+                cv2.rectangle(freeze_frame, (0, 0), (width - 1, height - 1), border_color, 8)
+
+                # Center highlight badge
+                badge_w, badge_h = 500, 80
+                badge_x = (width - badge_w) // 2
+                badge_y = 60
+                cv2.rectangle(freeze_frame, (badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h), (20, 20, 20), -1)
+                cv2.rectangle(freeze_frame, (badge_x, badge_y), (badge_x + badge_w, badge_y + badge_h), border_color, 3)
+
+                status_text = "MATCHED BOUNDARY (TP)" if is_matched else "FALSE POSITIVE (FP)"
+                cv2.putText(freeze_frame, f"|| PAUSED {pause_seconds:.1f}s | PRED: {p_time:.2f}s", (badge_x + 15, badge_y + 35),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+                cv2.putText(freeze_frame, f"Status: {status_text}", (badge_x + 15, badge_y + 65),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.65, border_color, 2)
+
+                for _ in range(pause_frames):
+                    writer.write(freeze_frame)
 
         cap.release()
         writer.release()
@@ -320,6 +356,7 @@ def main():
     parser.add_argument("--tolerance", type=float, default=0.5, help="Tolerance window in seconds (default: 0.5s)")
     parser.add_argument("--render-video", action="store_true", help="Render annotated.mp4 video")
     parser.add_argument("--render-curves", action="store_true", default=True, help="Render score_curve.png")
+    parser.add_argument("--pause-seconds", type=float, default=1.0, help="Pause duration in seconds when reaching a predicted boundary (default: 1.0s, set 0 to disable)")
     args = parser.parse_args()
 
     pred_data = json.loads(args.pred_file.read_text(encoding="utf-8"))
@@ -352,6 +389,7 @@ def main():
     print(f" UNIFIED VISUALIZATION FOR STEP SEGMENTATION")
     print(f" Target Videos ({len(target_vids)}): {', '.join(target_vids)}")
     print(f" Output Directory: {out_dir}")
+    print(f" Boundary Pause:   {args.pause_seconds:.1f}s")
     print("=" * 65)
 
     has_plt = False
@@ -388,9 +426,9 @@ def main():
         if args.render_video:
             if mp4_path and mp4_path.exists():
                 vid_file = vid_out_dir / "annotated.mp4"
-                ok = render_annotated_video(mp4_path, gt_b, preds, vid_file, tol=args.tolerance)
+                ok = render_annotated_video(mp4_path, gt_b, preds, vid_file, tol=args.tolerance, pause_seconds=args.pause_seconds)
                 if ok:
-                    print(f"   ✓ Generated annotated video: {vid_file.name}")
+                    print(f"   ✓ Generated annotated video (with {args.pause_seconds:.1f}s pause on predictions): {vid_file.name}")
             else:
                 print(f"   ✗ Source video not found for {vid}, skipping MP4 render.")
 
