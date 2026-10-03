@@ -27,3 +27,12 @@ runs/
 
 experiments/diffgebd_preds/
 output_lightning/
+
+# Datasets and heavy media
+data_annotated/
+dataset_new_cut/
+dataset_tas_splitrepeated/
+src/TAS-instance-style/dataset_tas_instance/
+tmp_repos/
+*.mp4
+*.npy
