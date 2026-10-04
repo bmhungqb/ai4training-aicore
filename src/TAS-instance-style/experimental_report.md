@@ -16,37 +16,86 @@ Báo cáo này tổng hợp kết quả của chu kỳ thực nghiệm toàn di�
 2. **Giai đoạn 2 (Clean Baseline Ablation)**: Nhận diện hiện tượng mô hình bị can thiệp quá mức (over-constraining), tiến hành đưa BaFormer quay về **Clean Baseline chuẩn** (tắt toàn bộ 5 loss phụ gây nhiễu, đưa inference về cơ bản) để đánh giá sòng phẳng thực lực của 3 backbone hàng đầu: **Clean DINOv3**, **Clean DINOv2**, và **Clean VideoMAE**.
 3. **Giai đoạn 3 (TQT — Temporal Query Transformer Baseline)**: Triển khai và đánh giá kiến trúc mô hình mới độc lập TQT chuẩn theo Section 13 [`problem_definition.md`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/problem_definition.md) (Dilated Temporal Convolutional Backbone + Temporal Query Decoder + Hungarian Bipartite Matcher + Set Criterion) trên toàn bộ 4 feature backbones: **VideoMAE**, **ResNet-50**, **DINOv2**, và **DINOv3**.
 
-### Phân Bổ Lớp Dữ Liệu Validation:
+### Phân Bổ Lớp Dữ Liệu & Ranh Giới (Validation):
 * **Class 0 (Sewing/Joining)**: 5,846 frames (44.6%) — Lớp hành động chính
 * **Class 1 (Positioning/Handling)**: 4,505 frames (34.3%) — Lớp thao tác chuẩn bị vải
 * **Class 2 (Adjustment/Alignment/Preparation)**: 1,976 frames (15.1%) — Lớp vi chỉnh
 * **Class 3 (Inspection/Auxiliary)**: 794 frames (6.0%) — Lớp thiểu số (kiểm tra đường may)
-* **Tổng số ranh giới thực tế (GT Boundaries)**: 443 ranh giới
+* **Tổng số ranh giới thực tế (GT Boundaries)**: **443 ranh giới** trên 10 video clips validation
+* **Độ dung sai ranh giới (Tolerance)**: $\pm 3$ frames ($\approx 0.2$ giây ở 15 fps)
 
 ---
 
 ## 2. Bảng Xếp Hạng Tổng Hợp (Benchmark Leaderboard)
 
-Xếp hạng toàn bộ 12 cấu hình thực nghiệm dựa trên chỉ số tổng hợp **Composite Score** ($0.4 \times \text{F1 Mean} + 0.3 \times \text{Edit} + 0.3 \times \text{Accuracy}$):
+Xếp hạng toàn bộ 12 cấu hình thực nghiệm, tập trung trực tiếp vào **Năng Lực Định Vị Ranh Giới (Boundary Detection)** và **Chất Lượng Phân Đoạn (Segmentation F1 & Edit)**:
 
-| Hạng | Cấu hình Thử nghiệm | Mô hình | Feature Dim | Best Ep / Total | Composite Score | F1 Mean (%) | F1@10 (%) | F1@25 (%) | F1@50 (%) | Frame Acc (%) | Edit Score | Boundary F1@3 (%) *(Best/Cuối)* | Boundary Recall@3 (%) *(Best/Cuối)* | Thư mục Checkpoint & Logs |
+| Hạng | Cấu hình Thử nghiệm | Mô hình | Feature Dim | Best Ep / Total | Boundary F1@3 (%) *(Cuối)* | Boundary Recall@3 (%) | Boundary Precision@3 (%) | F1 Mean (%) | F1@10 (%) | F1@25 (%) | F1@50 (%) | Frame Acc (%) | Edit Score | Thư mục Checkpoint & Logs |
 | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| 🥇 | **Over-eng DINOv2** | BaFormer | 768d | 97 / 142 | **44.04** | **31.76** | **45.03** | **33.51** | **16.75** | 50.38 | **54.08** | 33.01 / 33.71 | 45.82 / **50.56** | [`exp_dinov2/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/exp_dinov2/1/) |
-| 🥈 | **Clean DINOv3** | BaFormer | 768d | 43 / 88 | **42.45** | 27.48 | 39.89 | 30.85 | 11.70 | 53.24 | 51.61 | 1.73 / 20.88 | 0.90 / 18.74 | [`clean_dinov3/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/clean_dinov3/1/) |
-| 🥉 | **Over-eng Fusion (D2+MAE)** | BaFormer | 1536d | 27 / 72 | **42.44** | 28.65 | 39.79 | 32.36 | 13.79 | **56.36** | 46.90 | 0.88 / 28.94 | 0.45 / 32.96 | [`exp_dinov2_videomae/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/exp_dinov2_videomae/1/) |
-| 4 | **Clean DINOv2** | BaFormer | 768d | 99 / 144 | **41.85** | 28.15 | 41.76 | 30.16 | 12.53 | 50.67 | 51.29 | 26.94 / **33.80** | 29.35 / 49.21 | [`clean_dinov2/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/clean_dinov2/1/) |
-| 5 | **Over-eng VideoMAE** | BaFormer | 768d | 87 / 132 | **40.34** | 28.27 | 41.67 | 29.90 | 13.24 | 50.13 | 46.66 | 2.63 / 15.13 | 1.35 / 10.16 | [`exp_videomae/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/exp_videomae/1/) |
-| 6 | **Over-eng ResNet-50** | BaFormer | 2048d | 30 / 75 | **40.18** | 27.26 | 39.06 | 28.12 | 14.58 | 48.86 | 48.73 | 0.00 / 10.92 | 0.00 / 7.22 | [`exp_resnet50/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/exp_resnet50/1/) |
-| 7 | **Clean VideoMAE** | BaFormer | 768d | 125 / 170 | **39.72** | 27.66 | 39.01 | 28.02 | 15.93 | 46.22 | 49.29 | 10.82 / 15.01 | 6.09 / 9.71 | [`clean_videomae/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/clean_videomae/1/) |
-| 8 | **Over-eng DINOv3** | BaFormer | 768d | 30 / 75 | **38.93** | 26.11 | 37.78 | 26.11 | 14.44 | 51.19 | 43.76 | 0.44 / 15.32 | 0.23 / 11.51 | [`exp_dinov3/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/exp_dinov3/1/) |
-| 9 | **TQT VideoMAE** | TQT | 768d | 37 / 72 | **36.17** | 22.64 | 33.97 | 24.72 | 9.22 | 45.67 | 44.70 | 0.00 / 0.00 | 0.00 / 0.00 | [`experiments/videomae/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/TQT/experiments/videomae/1/) |
-| 10 | **TQT ResNet-50** | TQT | 2048d | 41 / 76 | **35.42** | 19.10 | 29.45 | 20.42 | 7.44 | 50.99 | 41.60 | 0.00 / 0.00 | 0.00 / 0.00 | [`experiments/resnet50/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/TQT/experiments/resnet50/1/) |
-| 11 | **TQT DINOv2** | TQT | 768d | 10 / 45 | **31.84** | 15.91 | 25.17 | 17.26 | 5.30 | 42.16 | 42.75 | 0.00 / 0.00 | 0.00 / 0.00 | [`experiments/dinov2/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/TQT/experiments/dinov2/1/) |
-| 12 | **TQT DINOv3** | TQT | 768d | 64 / 99 | **30.44** | 14.15 | 22.82 | 13.46 | 6.18 | 40.03 | 42.59 | 0.00 / 0.00 | 0.00 / 0.00 | [`experiments/dinov3/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/TQT/experiments/dinov3/1/) |
+| 🥇 | **Clean DINOv2** | BaFormer | 768d | 99 / 144 | **33.80%** | **49.21%** | 25.74% | **28.15%** | 41.76% | 30.16% | 12.53% | 50.67% | 51.29 | [`clean_dinov2/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/clean_dinov2/1/) |
+| 🥈 | **Over-eng DINOv2** | BaFormer | 768d | 97 / 142 | **33.71%** | **50.56%** | 25.28% | **31.76%** | **45.03%** | **33.51%** | **16.75%** | 50.38 | **54.08** | [`exp_dinov2/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/exp_dinov2/1/) |
+| 🥉 | **Over-eng Fusion (D2+MAE)** | BaFormer | 1536d | 27 / 72 | **28.94%** | 32.96% | 25.80% | 28.65% | 39.79% | 32.36% | 13.79% | **56.36%** | 46.90 | [`exp_dinov2_videomae/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/exp_dinov2_videomae/1/) |
+| 4 | **Clean DINOv3** | BaFormer | 768d | 43 / 88 | **20.88%** | 18.74% | 23.58% | 27.48% | 39.89% | 30.85% | 11.70% | 53.24 | 51.61 | [`clean_dinov3/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/clean_dinov3/1/) |
+| 5 | **Over-eng DINOv3** | BaFormer | 768d | 30 / 75 | **15.32%** | 11.51% | 22.87% | 26.11% | 37.78% | 26.11% | 14.44% | 51.19 | 43.76 | [`exp_dinov3/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/exp_dinov3/1/) |
+| 6 | **Over-eng VideoMAE** | BaFormer | 768d | 87 / 132 | **15.13%** | 10.16% | 29.61% | 28.27% | 41.67% | 29.90% | 13.24% | 50.13 | 46.66 | [`exp_videomae/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/exp_videomae/1/) |
+| 7 | **Clean VideoMAE** | BaFormer | 768d | 125 / 170 | **15.01%** | 9.71% | **33.08%** | 27.66% | 39.01% | 28.02% | 15.93% | 46.22 | 49.29 | [`clean_videomae/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/clean_videomae/1/) |
+| 8 | **Over-eng ResNet-50** | BaFormer | 2048d | 30 / 75 | **10.92%** | 7.22% | 22.38% | 27.26% | 39.06% | 28.12% | 14.58 | 48.86 | 48.73 | [`exp_resnet50/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/BaFormer/experiments/tas_instance/bk_fde_tde/exp_resnet50/1/) |
+| 9 | **TQT VideoMAE** | TQT | 768d | 37 / 72 | **0.00%** | 0.00% | 0.00% | 22.64% | 33.97% | 24.72% | 9.22 | 45.67 | 44.70 | [`experiments/videomae/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/TQT/experiments/videomae/1/) |
+| 10 | **TQT ResNet-50** | TQT | 2048d | 41 / 76 | **0.00%** | 0.00% | 0.00% | 19.10% | 29.45% | 20.42 | 7.44 | 50.99 | 41.60 | [`experiments/resnet50/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/TQT/experiments/resnet50/1/) |
+| 11 | **TQT DINOv2** | TQT | 768d | 10 / 45 | **0.00%** | 0.00% | 0.00% | 15.91% | 25.17% | 17.26 | 5.30 | 42.16 | 42.75 | [`experiments/dinov2/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/TQT/experiments/dinov2/1/) |
+| 12 | **TQT DINOv3** | TQT | 768d | 64 / 99 | **0.00%** | 0.00% | 0.00% | 14.15% | 22.82 | 13.46 | 6.18 | 40.03 | 42.59 | [`experiments/dinov3/1/`](file:///home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/TQT/experiments/dinov3/1/) |
 
 ---
 
-## 3. Ma Trận Chi Tiết Từng Lớp Hành Động (Per-Class Performance Matrix)
+## 3. Đánh Giá Toàn Diện Năng Lực Định Vị Ranh Giới (Boundary Detection In-Depth Analysis)
+
+Do bài toán **Instance-Level Temporal Action Segmentation (ITAS)** đòi hỏi phải tách biệt các thao tác lặp lại của cùng một lớp hành động (ví dụ: `Sewing #1 | Sewing #2`), **ranh giới (Boundary)** là tín hiệu quyết định sự thành bại của toàn bộ hệ thống.
+
+### 3.1. Bảng Đối Chiếu Chi Tiết Các Chỉ Số Ranh Giới
+
+| Cấu hình Thử nghiệm | Mô hình | Boundary Loss | Boundary F1@3 (%) | Boundary Recall@3 (%) | Boundary Precision@3 (%) | Số Ranh Giới Phát Hiện Đúng (TP) | Số Cắt Nhầm (FP) | Số Cắt Bị Bỏ Sót (FN) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Clean DINOv2** | BaFormer | **0.6368** | **33.80%** | **49.21%** | 25.74% | **218 / 443** | 629 | 225 |
+| **Over-eng DINOv2** | BaFormer | 1.0258 | 33.71% | **50.56%** | 25.28% | **224 / 443** | 664 | 219 |
+| **Over-eng Fusion** | BaFormer | 1.0196 | 28.94% | 32.96% | 25.80% | 146 / 443 | 420 | 297 |
+| **Clean DINOv3** | BaFormer | 0.6426 | 20.88% | 18.74% | 23.58% | 83 / 443 | 269 | 360 |
+| **Over-eng DINOv3** | BaFormer | 1.0191 | 15.32% | 11.51% | 22.87% | 51 / 443 | 172 | 392 |
+| **Over-eng VideoMAE** | BaFormer | 1.0232 | 15.13% | 10.16% | 29.61% | 45 / 443 | 107 | 398 |
+| **Clean VideoMAE** | BaFormer | 0.6357 | 15.01% | 9.71% | **33.08%** | 43 / 443 | **87** | 400 |
+| **Over-eng ResNet-50** | BaFormer | 1.0252 | 10.92% | 7.22% | 22.38% | 32 / 443 | 111 | 411 |
+| **TQT VideoMAE** | TQT | 0.2030 | 0.00% | 0.00% | 0.00% | 0 / 443 | 0 | 443 |
+| **TQT ResNet-50** | TQT | 0.2025 | 0.00% | 0.00% | 0.00% | 0 / 443 | 0 | 443 |
+| **TQT DINOv2** | TQT | 0.2060 | 0.00% | 0.00% | 0.00% | 0 / 443 | 0 | 443 |
+| **TQT DINOv3** | TQT | 0.2023 | 0.00% | 0.00% | 0.00% | 0 / 443 | 0 | 443 |
+
+---
+
+### 3.2. Phân Tích Hiện Tượng & Cơ Chế Định Vị Ranh Giới
+
+#### 1. DINOv2 Thống Trị Tuyệt Đối Về Nhận Diện Ranh Giới (Recall ~50%)
+* **Độ sắc nét không gian (Spatial Feature Granularity)**: DINOv2 duy trì độ phân giải đặc trưng không gian cực kỳ chi tiết của từng frame đơn lẻ. Khi tay công nhân rời khỏi bàn máy may hoặc khi kéo vải để may đường tiếp theo, vector đặc trưng của DINOv2 thay đổi đột ngột giữa 2 frame liên tiếp, tạo ra gradient thời gian ($\Delta F_t = \|f_t - f_{t-1}\|$) rất mạnh.
+* Kết quả: DINOv2 bắt được **218 – 224 trên tổng số 443 ranh giới thực tế** (Recall đạt **49.21% – 50.56%**), cao gấp **$2.6\times$ DINOv3**, gấp **$5\times$ VideoMAE**, và gấp **$7\times$ ResNet-50**.
+
+#### 2. DINOv3: Bứt Phá Lớn Trên Clean Baseline Nhưng Vẫn Xếp Sau DINOv2 Về Ranh Giới
+* Trên mô hình cũ (Over-engineered), DINOv3 bị phạt bởi Boundary Barrier Attention khiến ranh giới bị nén, Recall chỉ đạt **11.51%** (F1 15.32%).
+* Khi đưa về Clean Baseline, Boundary Recall tăng lên **18.74%** và Boundary F1 đạt **20.88% (+5.56%)**, bắt được 83 ranh giới. Tuy nhiên, do đặc trưng pretrain của DINOv3 tối ưu hóa ngữ nghĩa cấp cao (semantic clustering) mạnh hơn biểu diễn pixel-level cục bộ, sự chuyển dịch giữa 2 frame liền kề êm hơn DINOv2, dẫn đến nhiều ranh giới vi mô bị bỏ qua.
+
+#### 3. VideoMAE: Precision Ranh Giới Cao Nhất Nhưng Bị Rào Cản "Temporal Smearing"
+* **Hiện tượng làm mờ theo thời gian**: VideoMAE áp dụng cơ chế 3D Spatio-Temporal Tubelet Embedding (16 frames gộp thành 1 tubelet). Cơ chế này gom thông tin động lực học của cả cửa sổ 16 frame, khiến điểm chuyển tiếp ranh giới chính xác ở frame $t$ bị dàn đều sang các frame lân cận $t \pm 8$.
+* Hệ quả:
+  * **Precision cao nhất (33.08%)**: Khi VideoMAE báo có ranh giới, độ tin cậy rất cao (chỉ cắt nhầm 87 lần).
+  * **Recall thấp nhất (9.71%)**: VideoMAE bỏ sót tới 400 trên 443 ranh giới, không thể xác định điểm cắt sắc nét ở mức độ frame-level ($\pm 3$ frames).
+
+#### 4. ResNet-50: Tê Liệt Hoàn Toàn Khả Năng Tách Phân Đoạn
+* Đặc trưng 2D thuần túy không có attention toàn cục, thiếu khả năng phân biệt sự thay đổi tinh tế của thao tác tay. Recall ranh giới chỉ đạt **7.22%**, gần như toàn bộ video bị gộp thành một khối đồng nhất của lớp đa số.
+
+#### 5. Tại Sao Toàn Bộ Các Chạy Của TQT Đều Bị Boundary F1 = 0.0%?
+* **Cơ chế nhãn Dirac delta cứng**: TQT gán nhãn ranh giới bằng giá trị $1.0$ tại đúng 1 frame duy nhất, trong khi BaFormer dùng **Gaussian Heatmap** ($\sigma = 1.5$) để phân bổ xác suất mềm sang các frame lân cận.
+* **Mất cân bằng cực độ & Pos Weight thấp**: Trong video 4,000 frames chỉ có ~10-20 frames ranh giới ($0.2\%$). Với trọng số phạt $pos\_weight = 5.0$, mô hình TQT đạt loss tối ưu bằng cách dự đoán xác suất ranh giới cho mọi frame ở mức $\approx 0.04 - 0.08$. Khi giải mã với ngưỡng NMS threshold $0.30$, không có điểm nào vượt qua ngưỡng $\implies$ **TP = 0, FP = 0, FN = 443, dẫn đến Boundary Precision = Recall = F1 = 0.0%**.
+
+---
+
+## 4. Ma Trận Chi Tiết Từng Lớp Hành Động (Per-Class Performance Matrix)
 
 So sánh Precision (P), Recall (R), và F1-Score (%) trên từng lớp hành động:
 
@@ -67,42 +116,20 @@ So sánh Precision (P), Recall (R), và F1-Score (%) trên từng lớp hành đ
 
 ---
 
-## 4. Nghiên Cứu Bóc Tách: Over-Engineered vs Clean Baseline (Ablation Study)
+## 5. Nghiên Cứu Bóc Tách: Over-Engineered vs Clean Baseline (Ablation Study)
 
 Đối chiếu trực tiếp tác động của việc gỡ bỏ 5 hàm mất mát phụ (`contra`, `repulse`, `enc_ce`, `enc_smooth`, `mask_tv`) và các tầng hậu xử lý heuristic trong BaFormer:
 
 | Tiêu chí Đánh giá | DINOv3 Cũ $\to$ **DINOv3 Sạch** | DINOv2 Cũ $\to$ **DINOv2 Sạch** | VideoMAE Cũ $\to$ **VideoMAE Sạch** |
 | :--- | :---: | :---: | :---: |
-| **Biến thiên Composite Score** | **38.93 $\to$ 42.45 (+3.52)** 🚀 | 44.04 $\to$ 41.85 (-2.19) | 40.34 $\to$ 39.72 (-0.62) |
-| **Biến thiên Frame Accuracy** | **51.19% $\to$ 53.24% (+2.05%)** | 50.38% $\to$ 50.67% (+0.29%) | 50.13% $\to$ 46.22% (-3.91%) |
-| **Biến thiên Edit Score** | **43.76 $\to$ 51.61 (+7.85)** 🏆 | 54.08 $\to$ 51.29 (-2.79) | 46.66 $\to$ 49.29 (+2.63) |
-| **Biến thiên F1 Mean** | **26.11% $\to$ 27.48% (+1.37%)** | 31.76% $\to$ 28.15% (-3.61%) | 28.27% $\to$ 27.66% (-0.61%) |
-| **Biến thiên Boundary F1 Cuối** | **15.32% $\to$ 20.88% (+5.56%)** | 33.71% $\to$ 33.80% (+0.09%) | 15.13% $\to$ 15.01% (-0.12%) |
+| **Boundary F1@3 Cuối** | **15.32% $\to$ 20.88% (+5.56%)** 🚀 | 33.71% $\to$ **33.80% (+0.09%)** | 15.13% $\to$ 15.01% (-0.12%) |
+| **Boundary Recall@3** | **11.51% $\to$ 18.74% (+7.23%)** | 50.56% $\to$ 49.21% (-1.35%) | 10.16% $\to$ 9.71% (-0.45%) |
+| **Boundary Precision@3** | 22.87% $\to$ **23.58% (+0.71%)** | 25.28% $\to$ **25.74% (+0.46%)** | 29.61% $\to$ **33.08% (+3.47%)** |
+| **Frame Accuracy** | **51.19% $\to$ 53.24% (+2.05%)** | 50.38% $\to$ 50.67% (+0.29%) | 50.13% $\to$ 46.22% (-3.91%) |
+| **Edit Score** | **43.76 $\to$ 51.61 (+7.85)** 🏆 | 54.08 $\to$ 51.29 (-2.79) | 46.66 $\to$ 49.29 (+2.63) |
+| **F1 Mean** | **26.11% $\to$ 27.48% (+1.37%)** | 31.76% $\to$ 28.15% (-3.61%) | 28.27% $\to$ 27.66% (-0.61%) |
 | **Dự đoán Class 2 (Adjustment)** | **5,347 $\to$ 3,465 frames (-1,882 FP)** | 3,745 $\to$ 5,610 frames | 4,472 $\to$ 4,816 frames |
 | **Loss Tổng thể (Validation)** | 9.42 $\to$ **8.08 (Giảm mạnh)** | 8.44 $\to$ **7.49 (Giảm mạnh)** | 8.40 $\to$ **7.37 (Giảm mạnh)** |
-
----
-
-## 5. Nhận Xét & Phân Tích Dữ Liệu Thực Nghiệm (BaFormer)
-
-### 5.1. DINOv3 (`clean_dinov3`): Bước Bứt Phá Lớn Nhất Nhờ Gỡ Bỏ Ràng Buộc
-* **Giải phóng cấu trúc phân đoạn**: Ở mô hình cũ, DINOv3 bị phạt nặng bởi các loss đẩy query (`DQCR Repulse`) và chặn attention (`Boundary Barrier`), khiến mô hình xé nhỏ các đoạn may và dự đoán quá mức 5,347 frames vào Class 2.
-* **Cải thiện toàn diện trên Clean Baseline**:
-  * Số frame dự đoán giả Class 2 giảm 1,882 frames (xuống còn 3,465 frames).
-  * Class 0 (Sewing) Recall tăng mạnh từ 37.67% lên **56.38%**, kéo F1 Class 0 tăng từ 42.24% lên **51.97%**.
-  * **Edit Score nhảy vọt từ 43.76 lên 51.61 (+7.85 điểm)**, Frame Accuracy đạt **53.24%** (cao nhất trong 3 mô hình độc lập sạch), đưa Composite Score lên **42.45** (vượt qua Clean DINOv2 41.85).
-
-### 5.2. DINOv2 (`clean_dinov2`): Quán Quân Định Vị Ranh Giới & Lớp Thiểu Số
-* **Khả năng định vị ranh giới vượt trội**: DINOv2 duy trì sự thống trị tuyệt đối về ranh giới hành động, đạt **Boundary Recall 49.21%** và **Boundary F1 33.80%** (cao gấp $2.5\times$ DINOv3 và gấp $5\times$ VideoMAE).
-* **Đột phá ở lớp khó (Class 3 Inspection)**: Trên Clean Baseline, DINOv2 đạt Recall **33.75%** và F1 **37.30%** (Precision 41.68%) — xác lập kỷ lục cao nhất của toàn bộ dự án ở lớp thiểu số này.
-
-### 5.3. VideoMAE (`clean_videomae`): Ngữ Nghĩa Chuyển Động Chuẩn Xác Nhưng Bị Rào Cản Temporal Smearing
-* **Độ chuẩn xác thao tác tay (Precision)**: Nhờ các khối 3D Spatio-Temporal Attention, VideoMAE luôn đạt Precision cao nhất ở các lớp thao tác máy: **Sewing Precision 65.10%** và **Positioning Precision 65.87%**.
-* **Hạn chế cố hữu ở ranh giới**: Cơ chế 16-frame tubelet pooling làm mờ tín hiệu chuyển tiếp theo thời gian, khiến Boundary Recall chỉ đạt **9.71%**, không thể tách ranh giới frame-level sắc nét như các mô hình Spatial ViT (DINOv2/DINOv3).
-
-### 5.4. ResNet-50 (`exp_resnet50`): Suy Giảm Năng Lực Trên Bài Toán Instance-Level
-* **Thiên lệch lớp đa số**: ResNet-50 gán nhãn tới 70.00% frames vào Class 0 Sewing, nhưng gần như bỏ sót hoàn toàn Class 3 Inspection (Recall chỉ 4.79%, F1 8.50%).
-* **Tê liệt ranh giới**: Boundary Recall tại Best Epoch là 0.00% (cuối kỳ chỉ 7.22%), mô hình bị bão hòa và dừng sớm ở Epoch 30.
 
 ---
 
@@ -110,20 +137,16 @@ So sánh Precision (P), Recall (R), và F1-Score (%) trên từng lớp hành đ
 
 ### 6.1. So Sánh Trực Tiếp TQT vs BaFormer Clean Baseline
 
-Khi so sánh cùng một backbone đặc trưng giữa **TQT Baseline** và **BaFormer Clean Baseline**:
+Khi đối chiếu trên cùng một backbone đặc trưng giữa **TQT Baseline** và **BaFormer Clean Baseline**:
 
 | Tiêu chí | DINOv3: TQT vs Clean BaFormer | DINOv2: TQT vs Clean BaFormer | VideoMAE: TQT vs Clean BaFormer |
 | :--- | :---: | :---: | :---: |
-| **Composite Score** | 30.44 vs **42.45 (-12.01)** | 31.84 vs **41.85 (-10.01)** | 36.17 vs **39.72 (-3.55)** |
+| **Boundary F1@3** | 0.00% vs **20.88% (-20.88%)** | 0.00% vs **33.80% (-33.80%)** | 0.00% vs **15.01% (-15.01%)** |
+| **Boundary Recall@3** | 0.00% vs **18.74% (-18.74%)** | 0.00% vs **49.21% (-49.21%)** | 0.00% vs **9.71% (-9.71%)** |
 | **F1 Mean** | 14.15% vs **27.48% (-13.33%)** | 15.91% vs **28.15% (-12.24%)** | 22.64% vs **27.66% (-5.02%)** |
 | **Frame Accuracy** | 40.03% vs **53.24% (-13.21%)** | 42.16% vs **50.67% (-8.51%)** | 45.67% vs **46.22% (-0.55%)** |
 | **Edit Score** | 42.59 vs **51.61 (-9.02)** | 42.75 vs **51.29 (-8.54)** | 44.70 vs **49.29 (-4.59)** |
-| **Boundary F1@3** | 0.00% vs **20.88% (-20.88%)** | 0.00% vs **33.80% (-33.80%)** | 0.00% vs **15.01% (-15.01%)** |
 | **Class 3 F1 (Inspection)** | 9.34% vs **3.34% (+6.00%)** | 0.00% vs **37.30% (-37.30%)** | 0.79% vs **11.11% (-10.32%)** |
-
-> [!WARNING]
-> **Hiện tượng đảo chiều bất thường giữa các backbone:**
-> Trong BaFormer, các backbone thị giác mạnh (DINOv3, DINOv2) đứng đầu bảng xếp hạng (Composite 42.45 và 41.85). Tuy nhiên trong TQT, DINOv3 (30.44) và DINOv2 (31.84) lại tụt xuống đáy, trong khi VideoMAE (36.17) và ResNet-50 (35.42) lại đạt điểm cao hơn. Toàn bộ 4 mô hình TQT đều bị **Boundary F1 = 0.0%**.
 
 ---
 
