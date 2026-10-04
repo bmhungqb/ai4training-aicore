@@ -5,6 +5,8 @@ Supported backbones:
   resnet50  — ResNet-50 avgpool (2048-dim). Default. No extra deps.
   dinov2    — DINOv2 ViT-B/14 CLS token (768-dim). Better generalisation.
               Requires: internet (first run downloads ~330 MB weights).
+  dinov3    — DINOv3 ViT-B/16 CLS token (768-dim). Meta AI foundation model (Aug 2025).
+              Supports: Hugging Face (facebook/dinov3-vitb16-pretrain-lvd1689m) or torch.hub.
   videomae  — VideoMAE-Base (768-dim). Best temporal understanding.
               Requires: pip install transformers
 
@@ -18,16 +20,18 @@ recovery + last-vector padding. All frames are processed in a STREAMING fashion
 Usage:
     python tools/extract_features.py                          # all missing, resnet50
     python tools/extract_features.py --backbone dinov2        # DINOv2
+    python tools/extract_features.py --backbone dinov3        # DINOv3 (ViT-B/16, 768-dim)
     python tools/extract_features.py --backbone videomae      # VideoMAE (pip install transformers)
     python tools/extract_features.py --fix-mismatches         # fix existing broken .npy
     python tools/extract_features.py --video-ids cd11_chuyen1 cd16_chuyen2
-    python tools/extract_features.py --backbone dinov2 \\
-        --feat-dir src/TAS-instance-style/dataset_tas_instance/features_dinov2
+    python tools/extract_features.py --backbone dinov3 \
+        --feat-dir src/TAS-instance-style/dataset_tas_instance/features_dinov3
     python tools/extract_features.py --overwrite
 """
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import struct
@@ -124,6 +128,55 @@ def build_dinov2(device: torch.device):
     return tf, infer, 768
 
 
+def build_dinov3(device: torch.device, model_name: str | None = None):
+    """Build DINOv3 ViT-B/16 (768-dim) backbone.
+    Supports Hugging Face (facebook/dinov3-vitb16-pretrain-lvd1689m) or torch.hub fallback.
+    """
+    model_id = model_name or "facebook/dinov3-vitb16-pretrain-lvd1689m"
+    print(f"  Loading DINOv3 ({model_id}) ...")
+    tf = _imagenet_transform(224)
+
+    err_hf = None
+    try:
+        from transformers import AutoModel
+        model = AutoModel.from_pretrained(model_id).to(device).eval()
+
+        def infer_hf(batch: torch.Tensor) -> list[np.ndarray]:
+            with torch.no_grad():
+                out = model(pixel_values=batch.to(device))
+                if hasattr(out, "pooler_output") and out.pooler_output is not None:
+                    feat = out.pooler_output
+                elif hasattr(out, "last_hidden_state"):
+                    feat = out.last_hidden_state[:, 0, :]
+                else:
+                    feat = out[0][:, 0, :]
+            return list(feat.cpu().numpy())
+
+        return tf, infer_hf, 768
+    except Exception as e:
+        err_hf = e
+        print(f"  [Notice] Hugging Face transformers load failed: {e}\n  Attempting torch.hub fallback...")
+
+    try:
+        hub_name = model_name if (model_name and not model_name.startswith("facebook/")) else "dinov3_vitb16"
+        model = torch.hub.load("facebookresearch/dinov3", hub_name, pretrained=True, verbose=False)
+        model = model.to(device).eval()
+
+        def infer_hub(batch: torch.Tensor) -> list[np.ndarray]:
+            with torch.no_grad():
+                out = model(batch)
+            return list(out.cpu().numpy())
+
+        return tf, infer_hub, 768
+    except Exception as err_hub:
+        raise RuntimeError(
+            f"Failed to load DINOv3 ({model_id}) via transformers ({err_hf}) and torch.hub ({err_hub}).\n"
+            "Note: DINOv3 is a gated model. To download weights, please request access at "
+            "https://huggingface.co/facebook/dinov3 and run `huggingface-cli login`, "
+            "or pass a local checkpoint with --model-name /path/to/checkpoint."
+        )
+
+
 def build_videomae(device: torch.device):
     try:
         from transformers import VideoMAEModel, VideoMAEImageProcessor
@@ -156,13 +209,18 @@ def extract_streaming(
     infer: Callable,
     device: torch.device,
     batch_size: int,
+    start_frame: int = 0,
 ) -> np.ndarray:
     """Stream frames one batch at a time — safe for very long videos (no OOM).
 
+    If start_frame > 0, seeks to start_frame before reading up to expected_T frames.
     If cv2 drops frames near EOF (codec bug), uses seek-based recovery.
     If still short, pads with the last valid feature vector.
     """
     cap = cv2.VideoCapture(str(mp4_path))
+    if start_frame > 0:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
+
     feats: list[np.ndarray] = []
     batch: list[torch.Tensor] = []
 
@@ -175,6 +233,8 @@ def extract_streaming(
 
     # ---- normal sequential read ----
     while True:
+        if expected_T is not None and (len(feats) + len(batch)) >= expected_T:
+            break
         ret, frame = cap.read()
         if not ret:
             break
@@ -188,7 +248,7 @@ def extract_streaming(
     if expected_T is not None and len(feats) < expected_T:
         n_missing = expected_T - len(feats)
         recovered = 0
-        for idx in range(len(feats), expected_T):
+        for idx in range(start_frame + len(feats), start_frame + expected_T):
             cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
             ret, frame = cap.read()
             if not ret:
@@ -205,7 +265,7 @@ def extract_streaming(
     cap.release()
 
     if not feats:
-        raise RuntimeError(f"No frames decoded from {mp4_path}")
+        raise RuntimeError(f"No frames decoded from {mp4_path} (start_frame={start_frame})")
 
     # ---- pad remaining gap with last feature vector ----
     if expected_T is not None and len(feats) < expected_T:
@@ -230,25 +290,28 @@ def extract_videomae(
     infer_clip: Callable,
     clip_len: int,
     resize: int = 224,
+    start_frame: int = 0,
 ) -> np.ndarray:
     """Read all frames resized to `resize×resize` (saves ~10–50× RAM vs full-res),
     then run sliding-window VideoMAE per frame.
     """
-    # ---- read all frames at small size to stay in RAM ----
     cap = cv2.VideoCapture(str(mp4_path))
+    if start_frame > 0:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
     frames: list[np.ndarray] = []   # each (resize, resize, 3) uint8 — ~150 KB not ~6 MB
     while True:
+        if expected_T is not None and len(frames) >= expected_T:
+            break
         ret, frame = cap.read()
         if not ret:
             break
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        # resize to save RAM (VideoMAE processor will resize again to its own size)
         small = cv2.resize(rgb, (resize, resize), interpolation=cv2.INTER_LINEAR)
         frames.append(small)
 
     # seek recovery for dropped tail frames
     if expected_T is not None and len(frames) < expected_T:
-        for idx in range(len(frames), expected_T):
+        for idx in range(start_frame + len(frames), start_frame + expected_T):
             cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
             ret, frame = cap.read()
             if not ret:
@@ -258,7 +321,7 @@ def extract_videomae(
     cap.release()
 
     if not frames:
-        raise RuntimeError(f"No frames decoded from {mp4_path}")
+        raise RuntimeError(f"No frames decoded from {mp4_path} (start_frame={start_frame})")
 
     T = len(frames)
     half = clip_len // 2
@@ -281,16 +344,97 @@ def extract_videomae(
 
 
 # ---------------------------------------------------------------------------
+# Video resolution & offset helper
+# ---------------------------------------------------------------------------
+
+def get_part_start_frame(clip_id: str, parent_id: str) -> int:
+    """Calculate the exact starting frame of clip_id within parent video using step_segments_clean.json."""
+    if clip_id == parent_id or "_part" not in clip_id:
+        return 0
+    cd, chuyen = parent_id.split("_", 1)
+    clean_p = REPO_ROOT / "data" / cd / chuyen / "step_segments_clean.json"
+    if not clean_p.exists():
+        return 0
+    try:
+        import importlib.util
+        spec_inst = importlib.util.spec_from_file_location("prep_inst", REPO_ROOT / "tools" / "prepare_tas_instance_dataset.py")
+        prep_inst = importlib.util.module_from_spec(spec_inst)
+        spec_inst.loader.exec_module(prep_inst)
+
+        with open(clean_p) as f:
+            clean_data = json.load(f)
+        fps = clean_data.get("fps", 15.0)
+        instances = prep_inst.build_instances(clean_data, 100000, fps)
+        runs, curr = [], []
+        for inst in instances:
+            if inst["class_id"] != 0:
+                curr.append(inst)
+            else:
+                if curr:
+                    runs.append(curr)
+                    curr = []
+        if curr:
+            runs.append(curr)
+
+        part_idx = int(clip_id.split("_part")[-1]) - 1
+        if 0 <= part_idx < len(runs):
+            return int(runs[part_idx][0]["start_frame"])
+    except Exception:
+        pass
+    return 0
+
+
+def is_valid_mp4(path: Path) -> bool:
+    """Quickly check if an MP4 file has a valid 'moov' atom and is not truncated/corrupt."""
+    if not path.exists() or path.stat().st_size < 1000:
+        return False
+    try:
+        with open(path, "rb") as f:
+            head = f.read(1024 * 1024)
+            if b"moov" in head:
+                return True
+            f.seek(-min(path.stat().st_size, 1024 * 1024), 2)
+            tail = f.read(1024 * 1024)
+            return b"moov" in tail
+    except Exception:
+        return False
+
+
+def resolve_video_and_offset(vid_id: str, vid_dir: Path) -> tuple[Path | None, int]:
+    """Find video file and start frame offset for vid_id (including sliced parts)."""
+    direct = vid_dir / f"{vid_id}.mp4"
+    if direct.exists() and is_valid_mp4(direct):
+        return direct, 0
+
+    parent = re.sub(r"_part\d+$", "", vid_id)
+    parent_mp4 = vid_dir / f"{parent}.mp4"
+    if not parent_mp4.exists() or not is_valid_mp4(parent_mp4):
+        if "_" in parent:
+            cd, chuyen = parent.split("_", 1)
+            cands = [p for p in (REPO_ROOT / "data" / cd / chuyen).glob("*.mp4") if is_valid_mp4(p)]
+            if cands:
+                parent_mp4 = cands[0]
+
+    if parent_mp4.exists() and is_valid_mp4(parent_mp4):
+        start_frame = get_part_start_frame(vid_id, parent)
+        return parent_mp4, start_frame
+
+    return None, 0
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--backbone", choices=["resnet50", "dinov2", "videomae"],
+    parser.add_argument("--backbone", choices=["resnet50", "dinov2", "dinov3", "videomae"],
                         default="resnet50")
+    parser.add_argument("--model-name", type=str, default=None,
+                        help="HuggingFace model ID or local path (e.g. facebook/dinov3-vitb16-pretrain-lvd1689m)")
     parser.add_argument("--vid-dir",  type=Path, default=DEFAULT_VID_DIR)
-    parser.add_argument("--feat-dir", type=Path, default=DEFAULT_FEAT_DIR)
+    parser.add_argument("--feat-dir", type=Path, default=None)
     parser.add_argument("--gt-dir",   type=Path, default=DEFAULT_GT_DIR)
     parser.add_argument("--video-ids", nargs="*", default=None)
     parser.add_argument("--overwrite",      action="store_true")
@@ -300,6 +444,12 @@ def main() -> None:
                         help="Frames per GPU batch — reduce to 4 or 2 if OOM")
     parser.add_argument("--device", type=str, default=None)
     args = parser.parse_args()
+
+    if args.feat_dir is None:
+        if args.backbone == "resnet50":
+            args.feat_dir = DEFAULT_FEAT_DIR
+        else:
+            args.feat_dir = DEFAULT_FEAT_DIR.parent / f"features_{args.backbone}"
 
     args.feat_dir.mkdir(parents=True, exist_ok=True)
 
@@ -314,6 +464,8 @@ def main() -> None:
         tf, infer, feat_dim = build_resnet50(device)
     elif args.backbone == "dinov2":
         tf, infer, feat_dim = build_dinov2(device)
+    elif args.backbone == "dinov3":
+        tf, infer, feat_dim = build_dinov3(device, args.model_name)
     elif args.backbone == "videomae":
         _, infer_clip, feat_dim, clip_len = build_videomae(device)
         tf = infer = None
@@ -324,8 +476,8 @@ def main() -> None:
     print(f"Device   : {device}")
     print(f"Feat dir : {args.feat_dir}")
 
-    # ---- discover targets ----
-    vid_ids  = {f[:-4] for f in os.listdir(args.vid_dir)  if f.endswith(".mp4")}
+    # ---- discover targets from authoritative groundTruth files ----
+    gt_ids   = {f[:-4] for f in os.listdir(args.gt_dir) if f.endswith(".txt")}
     feat_ids = {f[:-4] for f in os.listdir(args.feat_dir) if f.endswith(".npy")}
 
     if args.video_ids:
@@ -340,11 +492,11 @@ def main() -> None:
             print(f"  {vid:35s}  npy={T_npy}  gt={T_gt}  diff={T_npy-T_gt:+d}")
         targets = [vid for vid, _, _ in mm]
     elif args.overwrite:
-        targets = sorted(vid_ids)
+        targets = sorted(gt_ids)
     else:
-        targets = sorted(vid_ids - feat_ids)
+        targets = sorted(gt_ids - feat_ids)
 
-    print(f"\nVideos total : {len(vid_ids)}")
+    print(f"\nVideos total : {len(gt_ids)}")
     print(f"Already have : {len(feat_ids)}")
     print(f"To extract   : {len(targets)}")
 
@@ -353,24 +505,25 @@ def main() -> None:
         return
 
     for i, vid_id in enumerate(targets, 1):
-        mp4 = args.vid_dir / f"{vid_id}.mp4"
         out = args.feat_dir / f"{vid_id}.npy"
 
-        if not mp4.exists():
-            print(f"[{i}/{len(targets)}] SKIP {vid_id} — mp4 not found")
-            continue
         if out.exists() and not args.overwrite and not args.fix_mismatches:
             print(f"[{i}/{len(targets)}] SKIP {vid_id} — already exists")
             continue
 
+        mp4, start_frame = resolve_video_and_offset(vid_id, args.vid_dir)
+        if not mp4 or not mp4.exists():
+            print(f"[{i}/{len(targets)}] SKIP {vid_id} — source video not found")
+            continue
+
         expected_T = gt_frame_count(args.gt_dir, vid_id)
-        print(f"[{i}/{len(targets)}] {vid_id}  (expected T={expected_T}) ...", flush=True)
+        print(f"[{i}/{len(targets)}] {vid_id}  (expected T={expected_T}, offset={start_frame}) ...", flush=True)
 
         try:
             if args.backbone == "videomae":
-                arr = extract_videomae(mp4, expected_T, infer_clip, clip_len)
+                arr = extract_videomae(mp4, expected_T, infer_clip, clip_len, start_frame=start_frame)
             else:
-                arr = extract_streaming(mp4, expected_T, tf, infer, device, args.batch_size)
+                arr = extract_streaming(mp4, expected_T, tf, infer, device, args.batch_size, start_frame=start_frame)
 
             np.save(out, arr)
             print(f"    → saved  shape={arr.shape}")
