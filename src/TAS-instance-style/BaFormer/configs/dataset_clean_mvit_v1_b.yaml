@@ -1,0 +1,72 @@
+model:
+  name: 'bk_fde_tde'
+  ce_weight: 1.0
+  mask_weight: 5.0
+  dice_weight: 2.5
+  bd_weight: 0.5
+
+  contra_weight: 0.0
+  repulse_weight: 0.0
+  enc_ce_weight: 0.0
+  enc_smooth_weight: 0.0
+  mask_tv_weight: 0.0
+  aux_discount: 0.4
+
+  note: 'dataset_clean_mvit_v1_b'
+
+  action_seg:
+    num_stage: 3
+    backbone:
+      name: None
+    frame_decoder:
+      name: 'ASFormerEncoder'
+      input_dim: 768       # MViT-v1-B (chunk-based) feature dimension
+      embed_dim: 64
+    transformer_decoder:
+      name: 'TransformerDecoderMask_Boundary_MulKV'
+      hidden_dim: 64
+      num_queries: 150
+      nheads: 3
+      dim_feedforward: 128
+      dropout: 0.30
+      dec_layers: 4
+      enforce_input_project: False
+      mask_dim: 64
+      deep_supervision: True
+      num_patch: 6
+      threshold: 0.35
+      layer_in_decode_block: 1
+
+dataset:
+  name: 'tas_instance'
+  dataset_dir: '/home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/dataset'
+  feat_folders: ['features_mvit_v1_b']
+  n_channels: 768
+  noise_weight: 0.08
+  boundary_sigma: 1.5
+  pos_weight: 6.0
+  threshold: 0.15
+  peak_prominence: 0.035
+  min_distance: 7
+  min_duration: 7
+  theta_t: 5
+  class_weights: [1.0, 1.0, 1.15, 1.25]  # 4 classes: Preparation, Positioning/Adjustment/Alignment, Sewing/Joining/Handling, Inspection/Auxiliary
+
+train:
+  batch_size: 4
+  base_lr: 0.0005
+  early_stopping_patience: 45
+  weight_decay: 0.0008
+
+augmentation:
+  is_use: True
+
+scheduler:
+  type: 'cosine'
+  epochs: 300
+  warmup_epochs: 10
+  eta_min: 0.000001
+  milestones: [100, 180, 260]
+
+test:
+  infer_mode: 'bd_peak'

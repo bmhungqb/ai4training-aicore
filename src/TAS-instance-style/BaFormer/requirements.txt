@@ -1,0 +1,25 @@
+#torch==1.12.0+cu113
+#torchvision==0.13.0+cu113
+#torchaudio==0.12.0+cu113
+timm==0.6.12
+decord==0.6.0
+opencv-python==4.7.0.68
+einops==0.6.0
+fvcore==0.1.5.post20221221
+iopath==0.1.10
+yacs==0.1.8
+ego4d==1.7.3
+#detectron2 @ git+https://github.com/facebookresearch/detectron2.git@4e80df1e58901557e2824ce3b488d30209a9be33
+numpy
+pandas
+scipy
+scikit-learn
+tqdm
+PyYAML
+requests
+hydra-core
+omegaconf
+matplotlib
+seaborn
+tabulate
+gdown

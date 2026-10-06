@@ -1,0 +1,74 @@
+model:
+  name: 'bk_fde_tde'
+  # --- CORE LOSSES (Mask2Former / BaFormer Baseline) ---
+  ce_weight: 1.0           # Classification Cross-Entropy Loss
+  mask_weight: 5.0         # Mask Binary Focal Loss
+  dice_weight: 2.5         # Mask Dice Loss
+  bd_weight: 0.5           # Standard Boundary Loss (supporting temporal instance separation)
+  
+  # --- TURNED OFF COMPLEX AUXILIARY LOSSES (Align with problem_definition.md) ---
+  contra_weight: 0.0       # Disabled: Same-Class Instance Contrastive Loss
+  repulse_weight: 0.0      # Disabled: Decoder Query Contrastive Repulsion (DQCR)
+  enc_ce_weight: 0.0       # Disabled: Direct ASFormer frame CE supervision
+  enc_smooth_weight: 0.0   # Disabled: T-MSE temporal smoothing
+  mask_tv_weight: 0.0      # Disabled: Query Mask TV Regularization
+  aux_discount: 0.4        # Standard intermediate layer auxiliary discount
+
+  note: 'clean_dinov2'
+
+  action_seg:
+    num_stage: 3
+    backbone:
+      name: None
+    frame_decoder:
+      name: 'ASFormerEncoder'
+      input_dim: 768       # DINOv2 feature dimension
+      embed_dim: 64
+    transformer_decoder:
+      name: 'TransformerDecoderMask_Boundary_MulKV'
+      hidden_dim: 64
+      num_queries: 150
+      nheads: 3
+      dim_feedforward: 128
+      dropout: 0.30
+      dec_layers: 4
+      enforce_input_project: False
+      mask_dim: 64
+      deep_supervision: True
+      num_patch: 6
+      threshold: 0.35
+      layer_in_decode_block: 1
+
+dataset:
+  name: 'tas_instance'
+  dataset_dir: '/home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/dataset_tas_instance'
+  feat_folders: ['features_dinov2']
+  n_channels: 768
+  noise_weight: 0.08
+  boundary_sigma: 1.5
+  pos_weight: 6.0
+  threshold: 0.15
+  peak_prominence: 0.035
+  min_distance: 7
+  min_duration: 7
+  theta_t: 5              # Proposal 01 fix: 5 frames instead of 100
+  class_weights: [0.82, 1.05, 1.18, 1.30]  # Balanced class weights (4 classes: sewing, positioning, adjustment, inspection)
+
+train:
+  batch_size: 4
+  base_lr: 0.0005
+  early_stopping_patience: 45
+  weight_decay: 0.0008
+
+augmentation:
+  is_use: True
+
+scheduler:
+  type: 'cosine'
+  epochs: 300
+  warmup_epochs: 10
+  eta_min: 0.000001
+  milestones: [100, 180, 260]
+
+test:
+  infer_mode: 'bd_peak'   # Standard BaFormer boundary-peak instance inference

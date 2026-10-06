@@ -1,0 +1,68 @@
+model:
+  name: 'bk_fde_tde'
+  bd_weight: 0.8          # Pillar 4: Calibrated Multi-Scale Boundary Loss (Focal + Dice)
+  dice_weight: 2.5
+  contra_weight: 0.20     # Same-Class Instance Contrastive Loss
+  repulse_weight: 0.15    # Pillar 2 (proposal_imprv_baformer14): Decoder Query Contrastive Repulsion (DQCR)
+  enc_ce_weight: 0.3       # Direct frame-wise CE supervision for ASFormer encoder
+  enc_smooth_weight: 0.15  # T-MSE temporal smoothing loss
+  mask_tv_weight: 0.15     # Query Mask TV Regularization
+  aux_discount: 0.4        # Auxiliary loss discounting (0.4x) for intermediate layers
+  note: 'final_exp14'
+  action_seg:
+    num_stage: 3
+    backbone:
+      name: None
+    frame_decoder:
+      name: 'ASFormerEncoder'
+      input_dim: 1536  # 768 (DINOv2) + 768 (VideoMAE)
+      embed_dim: 64
+    transformer_decoder:
+      name: 'TransformerDecoderMask_Boundary_MulKV'
+      hidden_dim: 64
+      num_queries: 150 # overridden by cfg.dataset.num_query at build time; kept in sync here for clarity
+      nheads: 3
+      dim_feedforward: 128
+      dropout: 0.30   # Raised dropout to close generalization gap
+      dec_layers: 4
+      enforce_input_project: False
+      mask_dim: 64
+      deep_supervision: True
+      num_patch: 6
+      threshold: 0.35 # if < threshold, True, not attend to
+      layer_in_decode_block: 1
+
+dataset:
+  name: 'tas_instance'
+  # dataset_dir must point directly at the dataset_tas_instance/ root
+  dataset_dir: '/home/hungbm/ai4training/ai4training-aicore/src/TAS-instance-style/dataset_tas_instance'
+  feat_folders: ['features_dinov2', 'features_videomae']
+  n_channels: 1536
+  noise_weight: 0.08   # Pillar 6: Increased jitter to prevent 150 queries memorizing 48 clips
+  boundary_sigma: 1.5  # Gaussian boundary smoothing sigma (frames)
+  pos_weight: 6.0      # Calibrated for Gaussian smoothing
+  threshold: 0.15      # Pillar 5: Dynamic cut threshold floor
+  peak_prominence: 0.035 # Pillar 5: Recovers 60-80 True Positives suppressed by over-strict 0.065
+  min_distance: 7      # Pillar 5: Minimum distance between candidate cuts
+  min_duration: 7      # Minimum segment duration
+  theta_t: 7           # Micro-segment consolidation threshold
+  class_weights: [0.82, 1.05, 1.18, 1.30]  # Balanced class weights (4 classes: sewing, positioning, adjustment, inspection)
+
+train:
+  batch_size: 4
+  base_lr: 0.0005
+  early_stopping_patience: 45 # Pillar 6: Val loss reaches min at epoch 50-70; avoid post-70 memorization
+  weight_decay: 0.0008       # Mild regularization boost
+
+augmentation:
+  is_use: True  # augment_crop / augment_crop_instances (0.7-1.0 duration random crop)
+
+scheduler:
+  type: 'cosine'             # Pillar 6: Cosine Annealing with Warmup
+  epochs: 300
+  warmup_epochs: 10
+  eta_min: 0.000001
+  milestones: [100, 180, 260] # kept for fallback
+
+test:
+  infer_mode: 'energy_fusion'  # Pillar 5: 'energy_fusion' (Recommended) | 'snap_dual' | 'window_voting'
