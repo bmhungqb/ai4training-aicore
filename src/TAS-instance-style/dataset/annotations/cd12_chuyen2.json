@@ -1,0 +1,799 @@
+{
+  "video_id": "cd12_chuyen2",
+  "fps": 14.656911849975586,
+  "num_frames": 1003,
+  "duration": 68.432,
+  "instances": [
+    {
+      "id": 0,
+      "start_frame": 0,
+      "end_frame": 47,
+      "start_time": 0.0,
+      "end_time": 3.207,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 1,
+      "start_frame": 47,
+      "end_frame": 70,
+      "start_time": 3.207,
+      "end_time": 4.776,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 2,
+      "start_frame": 70,
+      "end_frame": 97,
+      "start_time": 4.776,
+      "end_time": 6.618,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 3,
+      "start_frame": 97,
+      "end_frame": 112,
+      "start_time": 6.618,
+      "end_time": 7.641,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 4,
+      "start_frame": 112,
+      "end_frame": 119,
+      "start_time": 7.641,
+      "end_time": 8.119,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 5,
+      "start_frame": 119,
+      "end_frame": 135,
+      "start_time": 8.119,
+      "end_time": 9.211,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 6,
+      "start_frame": 135,
+      "end_frame": 153,
+      "start_time": 9.211,
+      "end_time": 10.439,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 7,
+      "start_frame": 153,
+      "end_frame": 177,
+      "start_time": 10.439,
+      "end_time": 12.076,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 8,
+      "start_frame": 177,
+      "end_frame": 187,
+      "start_time": 12.076,
+      "end_time": 12.758,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 9,
+      "start_frame": 187,
+      "end_frame": 205,
+      "start_time": 12.758,
+      "end_time": 13.987,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 10,
+      "start_frame": 205,
+      "end_frame": 231,
+      "start_time": 13.987,
+      "end_time": 15.76,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 11,
+      "start_frame": 231,
+      "end_frame": 252,
+      "start_time": 15.76,
+      "end_time": 17.193,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 12,
+      "start_frame": 252,
+      "end_frame": 264,
+      "start_time": 17.193,
+      "end_time": 18.012,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 13,
+      "start_frame": 264,
+      "end_frame": 280,
+      "start_time": 18.012,
+      "end_time": 19.104,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 14,
+      "start_frame": 280,
+      "end_frame": 296,
+      "start_time": 19.104,
+      "end_time": 20.195,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 15,
+      "start_frame": 296,
+      "end_frame": 303,
+      "start_time": 20.195,
+      "end_time": 20.673,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 16,
+      "start_frame": 303,
+      "end_frame": 316,
+      "start_time": 20.673,
+      "end_time": 21.56,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 17,
+      "start_frame": 316,
+      "end_frame": 340,
+      "start_time": 21.56,
+      "end_time": 23.197,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 18,
+      "start_frame": 340,
+      "end_frame": 349,
+      "start_time": 23.197,
+      "end_time": 23.811,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 19,
+      "start_frame": 349,
+      "end_frame": 359,
+      "start_time": 23.811,
+      "end_time": 24.494,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 20,
+      "start_frame": 359,
+      "end_frame": 378,
+      "start_time": 24.494,
+      "end_time": 25.79,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 21,
+      "start_frame": 378,
+      "end_frame": 392,
+      "start_time": 25.79,
+      "end_time": 26.745,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 22,
+      "start_frame": 392,
+      "end_frame": 400,
+      "start_time": 26.745,
+      "end_time": 27.291,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 23,
+      "start_frame": 400,
+      "end_frame": 413,
+      "start_time": 27.291,
+      "end_time": 28.178,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 24,
+      "start_frame": 413,
+      "end_frame": 438,
+      "start_time": 28.178,
+      "end_time": 29.884,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 25,
+      "start_frame": 438,
+      "end_frame": 449,
+      "start_time": 29.884,
+      "end_time": 30.634,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 26,
+      "start_frame": 449,
+      "end_frame": 462,
+      "start_time": 30.634,
+      "end_time": 31.521,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 27,
+      "start_frame": 462,
+      "end_frame": 477,
+      "start_time": 31.521,
+      "end_time": 32.544,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 28,
+      "start_frame": 477,
+      "end_frame": 492,
+      "start_time": 32.544,
+      "end_time": 33.568,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 29,
+      "start_frame": 492,
+      "end_frame": 501,
+      "start_time": 33.568,
+      "end_time": 34.182,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 30,
+      "start_frame": 501,
+      "end_frame": 520,
+      "start_time": 34.182,
+      "end_time": 35.478,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 31,
+      "start_frame": 520,
+      "end_frame": 538,
+      "start_time": 35.478,
+      "end_time": 36.706,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 32,
+      "start_frame": 538,
+      "end_frame": 573,
+      "start_time": 36.706,
+      "end_time": 39.094,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    },
+    {
+      "id": 33,
+      "start_frame": 573,
+      "end_frame": 589,
+      "start_time": 39.094,
+      "end_time": 40.186,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 34,
+      "start_frame": 589,
+      "end_frame": 614,
+      "start_time": 40.186,
+      "end_time": 41.891,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 35,
+      "start_frame": 614,
+      "end_frame": 651,
+      "start_time": 41.891,
+      "end_time": 44.416,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 36,
+      "start_frame": 651,
+      "end_frame": 727,
+      "start_time": 44.416,
+      "end_time": 49.601,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 37,
+      "start_frame": 727,
+      "end_frame": 747,
+      "start_time": 49.601,
+      "end_time": 50.966,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 38,
+      "start_frame": 747,
+      "end_frame": 766,
+      "start_time": 50.966,
+      "end_time": 52.262,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 39,
+      "start_frame": 766,
+      "end_frame": 782,
+      "start_time": 52.262,
+      "end_time": 53.354,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 40,
+      "start_frame": 782,
+      "end_frame": 795,
+      "start_time": 53.354,
+      "end_time": 54.241,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 41,
+      "start_frame": 795,
+      "end_frame": 813,
+      "start_time": 54.241,
+      "end_time": 55.469,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 42,
+      "start_frame": 813,
+      "end_frame": 823,
+      "start_time": 55.469,
+      "end_time": 56.151,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 43,
+      "start_frame": 823,
+      "end_frame": 839,
+      "start_time": 56.151,
+      "end_time": 57.243,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 44,
+      "start_frame": 839,
+      "end_frame": 861,
+      "start_time": 57.243,
+      "end_time": 58.744,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    },
+    {
+      "id": 45,
+      "start_frame": 861,
+      "end_frame": 889,
+      "start_time": 58.744,
+      "end_time": 60.654,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 46,
+      "start_frame": 889,
+      "end_frame": 898,
+      "start_time": 60.654,
+      "end_time": 61.268,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 47,
+      "start_frame": 898,
+      "end_frame": 910,
+      "start_time": 61.268,
+      "end_time": 62.087,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 48,
+      "start_frame": 910,
+      "end_frame": 922,
+      "start_time": 62.087,
+      "end_time": 62.905,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 49,
+      "start_frame": 922,
+      "end_frame": 928,
+      "start_time": 62.905,
+      "end_time": 63.315,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 50,
+      "start_frame": 928,
+      "end_frame": 942,
+      "start_time": 63.315,
+      "end_time": 64.27,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 51,
+      "start_frame": 942,
+      "end_frame": 967,
+      "start_time": 64.27,
+      "end_time": 65.976,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 52,
+      "start_frame": 967,
+      "end_frame": 1003,
+      "start_time": 65.976,
+      "end_time": 68.432,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    }
+  ],
+  "boundaries": [
+    {
+      "frame": 47,
+      "type": "same_class",
+      "left_instance": 0,
+      "right_instance": 1
+    },
+    {
+      "frame": 70,
+      "type": "class_change",
+      "left_instance": 1,
+      "right_instance": 2
+    },
+    {
+      "frame": 97,
+      "type": "same_class",
+      "left_instance": 2,
+      "right_instance": 3
+    },
+    {
+      "frame": 112,
+      "type": "same_class",
+      "left_instance": 3,
+      "right_instance": 4
+    },
+    {
+      "frame": 119,
+      "type": "class_change",
+      "left_instance": 4,
+      "right_instance": 5
+    },
+    {
+      "frame": 135,
+      "type": "class_change",
+      "left_instance": 5,
+      "right_instance": 6
+    },
+    {
+      "frame": 153,
+      "type": "class_change",
+      "left_instance": 6,
+      "right_instance": 7
+    },
+    {
+      "frame": 177,
+      "type": "class_change",
+      "left_instance": 7,
+      "right_instance": 8
+    },
+    {
+      "frame": 187,
+      "type": "class_change",
+      "left_instance": 8,
+      "right_instance": 9
+    },
+    {
+      "frame": 205,
+      "type": "same_class",
+      "left_instance": 9,
+      "right_instance": 10
+    },
+    {
+      "frame": 231,
+      "type": "same_class",
+      "left_instance": 10,
+      "right_instance": 11
+    },
+    {
+      "frame": 252,
+      "type": "class_change",
+      "left_instance": 11,
+      "right_instance": 12
+    },
+    {
+      "frame": 264,
+      "type": "class_change",
+      "left_instance": 12,
+      "right_instance": 13
+    },
+    {
+      "frame": 280,
+      "type": "class_change",
+      "left_instance": 13,
+      "right_instance": 14
+    },
+    {
+      "frame": 296,
+      "type": "class_change",
+      "left_instance": 14,
+      "right_instance": 15
+    },
+    {
+      "frame": 303,
+      "type": "class_change",
+      "left_instance": 15,
+      "right_instance": 16
+    },
+    {
+      "frame": 316,
+      "type": "class_change",
+      "left_instance": 16,
+      "right_instance": 17
+    },
+    {
+      "frame": 340,
+      "type": "same_class",
+      "left_instance": 17,
+      "right_instance": 18
+    },
+    {
+      "frame": 349,
+      "type": "class_change",
+      "left_instance": 18,
+      "right_instance": 19
+    },
+    {
+      "frame": 359,
+      "type": "same_class",
+      "left_instance": 19,
+      "right_instance": 20
+    },
+    {
+      "frame": 378,
+      "type": "class_change",
+      "left_instance": 20,
+      "right_instance": 21
+    },
+    {
+      "frame": 392,
+      "type": "class_change",
+      "left_instance": 21,
+      "right_instance": 22
+    },
+    {
+      "frame": 400,
+      "type": "class_change",
+      "left_instance": 22,
+      "right_instance": 23
+    },
+    {
+      "frame": 413,
+      "type": "same_class",
+      "left_instance": 23,
+      "right_instance": 24
+    },
+    {
+      "frame": 438,
+      "type": "same_class",
+      "left_instance": 24,
+      "right_instance": 25
+    },
+    {
+      "frame": 449,
+      "type": "same_class",
+      "left_instance": 25,
+      "right_instance": 26
+    },
+    {
+      "frame": 462,
+      "type": "same_class",
+      "left_instance": 26,
+      "right_instance": 27
+    },
+    {
+      "frame": 477,
+      "type": "class_change",
+      "left_instance": 27,
+      "right_instance": 28
+    },
+    {
+      "frame": 492,
+      "type": "same_class",
+      "left_instance": 28,
+      "right_instance": 29
+    },
+    {
+      "frame": 501,
+      "type": "class_change",
+      "left_instance": 29,
+      "right_instance": 30
+    },
+    {
+      "frame": 520,
+      "type": "class_change",
+      "left_instance": 30,
+      "right_instance": 31
+    },
+    {
+      "frame": 538,
+      "type": "class_change",
+      "left_instance": 31,
+      "right_instance": 32
+    },
+    {
+      "frame": 573,
+      "type": "class_change",
+      "left_instance": 32,
+      "right_instance": 33
+    },
+    {
+      "frame": 589,
+      "type": "class_change",
+      "left_instance": 33,
+      "right_instance": 34
+    },
+    {
+      "frame": 614,
+      "type": "class_change",
+      "left_instance": 34,
+      "right_instance": 35
+    },
+    {
+      "frame": 651,
+      "type": "same_class",
+      "left_instance": 35,
+      "right_instance": 36
+    },
+    {
+      "frame": 727,
+      "type": "class_change",
+      "left_instance": 36,
+      "right_instance": 37
+    },
+    {
+      "frame": 747,
+      "type": "same_class",
+      "left_instance": 37,
+      "right_instance": 38
+    },
+    {
+      "frame": 766,
+      "type": "class_change",
+      "left_instance": 38,
+      "right_instance": 39
+    },
+    {
+      "frame": 782,
+      "type": "class_change",
+      "left_instance": 39,
+      "right_instance": 40
+    },
+    {
+      "frame": 795,
+      "type": "class_change",
+      "left_instance": 40,
+      "right_instance": 41
+    },
+    {
+      "frame": 813,
+      "type": "class_change",
+      "left_instance": 41,
+      "right_instance": 42
+    },
+    {
+      "frame": 823,
+      "type": "class_change",
+      "left_instance": 42,
+      "right_instance": 43
+    },
+    {
+      "frame": 839,
+      "type": "class_change",
+      "left_instance": 43,
+      "right_instance": 44
+    },
+    {
+      "frame": 861,
+      "type": "class_change",
+      "left_instance": 44,
+      "right_instance": 45
+    },
+    {
+      "frame": 889,
+      "type": "same_class",
+      "left_instance": 45,
+      "right_instance": 46
+    },
+    {
+      "frame": 898,
+      "type": "class_change",
+      "left_instance": 46,
+      "right_instance": 47
+    },
+    {
+      "frame": 910,
+      "type": "same_class",
+      "left_instance": 47,
+      "right_instance": 48
+    },
+    {
+      "frame": 922,
+      "type": "same_class",
+      "left_instance": 48,
+      "right_instance": 49
+    },
+    {
+      "frame": 928,
+      "type": "class_change",
+      "left_instance": 49,
+      "right_instance": 50
+    },
+    {
+      "frame": 942,
+      "type": "same_class",
+      "left_instance": 50,
+      "right_instance": 51
+    },
+    {
+      "frame": 967,
+      "type": "class_change",
+      "left_instance": 51,
+      "right_instance": 52
+    }
+  ]
+}

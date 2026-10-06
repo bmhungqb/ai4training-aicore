@@ -1,0 +1,154 @@
+{
+  "video_id": "cd10_chuyen1",
+  "fps": 15.510368347167969,
+  "num_frames": 329,
+  "duration": 21.212,
+  "instances": [
+    {
+      "id": 0,
+      "start_frame": 0,
+      "end_frame": 41,
+      "start_time": 0.0,
+      "end_time": 2.643,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 1,
+      "start_frame": 41,
+      "end_frame": 132,
+      "start_time": 2.643,
+      "end_time": 8.51,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    },
+    {
+      "id": 2,
+      "start_frame": 132,
+      "end_frame": 144,
+      "start_time": 8.51,
+      "end_time": 9.284,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 3,
+      "start_frame": 144,
+      "end_frame": 210,
+      "start_time": 9.284,
+      "end_time": 13.539,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 4,
+      "start_frame": 210,
+      "end_frame": 217,
+      "start_time": 13.539,
+      "end_time": 13.991,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 5,
+      "start_frame": 217,
+      "end_frame": 228,
+      "start_time": 13.991,
+      "end_time": 14.7,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    },
+    {
+      "id": 6,
+      "start_frame": 228,
+      "end_frame": 264,
+      "start_time": 14.7,
+      "end_time": 17.021,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 7,
+      "start_frame": 264,
+      "end_frame": 277,
+      "start_time": 17.021,
+      "end_time": 17.859,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    },
+    {
+      "id": 8,
+      "start_frame": 277,
+      "end_frame": 316,
+      "start_time": 17.859,
+      "end_time": 20.373,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 9,
+      "start_frame": 316,
+      "end_frame": 329,
+      "start_time": 20.373,
+      "end_time": 21.212,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    }
+  ],
+  "boundaries": [
+    {
+      "frame": 41,
+      "type": "class_change",
+      "left_instance": 0,
+      "right_instance": 1
+    },
+    {
+      "frame": 132,
+      "type": "class_change",
+      "left_instance": 1,
+      "right_instance": 2
+    },
+    {
+      "frame": 144,
+      "type": "class_change",
+      "left_instance": 2,
+      "right_instance": 3
+    },
+    {
+      "frame": 210,
+      "type": "class_change",
+      "left_instance": 3,
+      "right_instance": 4
+    },
+    {
+      "frame": 217,
+      "type": "class_change",
+      "left_instance": 4,
+      "right_instance": 5
+    },
+    {
+      "frame": 228,
+      "type": "class_change",
+      "left_instance": 5,
+      "right_instance": 6
+    },
+    {
+      "frame": 264,
+      "type": "class_change",
+      "left_instance": 6,
+      "right_instance": 7
+    },
+    {
+      "frame": 277,
+      "type": "class_change",
+      "left_instance": 7,
+      "right_instance": 8
+    },
+    {
+      "frame": 316,
+      "type": "class_change",
+      "left_instance": 8,
+      "right_instance": 9
+    }
+  ]
+}

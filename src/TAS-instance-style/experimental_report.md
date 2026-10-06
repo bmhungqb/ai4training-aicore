@@ -198,3 +198,77 @@ Dựa trên các phân tích định lượng trên, lộ trình nâng cấp ki�
 4. **Mở rộng Receptive Field của Temporal Backbone**: Tăng số tầng dilated convolution hoặc bổ sung khối Temporal Self-Attention / ASPP vào backbone MS-TCN để trường tiếp nhận bao phủ trọn vẹn 4,500 frames.
 5. **Cải tiến Bộ Giải Mã Inference (Empty Query Masking & Boundary Snapping)**:
    * Trước khi thực hiện ma trận chiếu `sem_prob`, lọc bỏ toàn bộ các query có $P(\emptyset \mid q) > P(\text{action} \mid q)$ hoặc áp dụng cơ chế interval winning query dựa trên ranh giới.
+
+---
+
+## 7. Benchmark Mới: Tập Dữ Liệu `dataset` (Chunk-Based Temporal Backbones)
+
+### 7.1. Bối Cảnh & Khác Biệt So Với `dataset_tas_instance`
+
+Song song với benchmark ở các mục 1–6 (dựa trên `dataset_tas_instance`, 98 clips, đặc trưng trích xuất **frame-by-frame** bằng ResNet-50/DINOv2/DINOv3/VideoMAE-sliding-window), một chu kỳ thực nghiệm độc lập đã được thực hiện trên tập dữ liệu **`dataset`** mới — xây dựng lại từ `original_data/processed_data/` + `balanced_split`, với 2 khác biệt cốt lõi:
+
+1. **Nhãn 4 lớp, KHÔNG có class `background`**: Khác với `dataset_tas_instance` (có lớp "ranh giới rỗng"/gap), script `build_dataset.py` hấp thụ mọi khoảng trống (chủ yếu là đoạn đuôi video dài hơn đoạn annotation cuối, tới ~6.8s/100 frames) vào instance liền kề gần nhất thay vì tạo nhãn riêng — do đó mọi frame đều có nhãn hành động thật.
+2. **Đặc trưng trích xuất theo CHUNK (clip-based), không phải frame-by-frame**: Với mỗi frame $t$, một cửa sổ `clip_len` frame liên tiếp CENTERED tại $t$ được đưa qua một backbone không-thời gian (3D CNN / Video Transformer) thực sự, rồi global-average-pool thành 1 vector/frame — khác hẳn cách ResNet-50/DINOv2/DINOv3 cũ xử lý 1 frame đơn lẻ mỗi lần. Ngoại lệ: **DINOv2** trên tập `dataset` mới vẫn chạy **frame-by-frame** (2D ViT thuần, không chunk) để làm đối chứng trực tiếp với các backbone chunk-based.
+3. **ROI Mask Cropping**: Mọi frame được cắt theo bounding-box của mask ROI (`<source_video>.mask.png`, ~70–90% diện tích khung hình) trước khi resize, loại bỏ nền/viền không liên quan đến trạm máy may.
+
+**Dữ liệu**: 86 video clips (69 train / 17 val=test, `balanced_split`).
+**Phân bổ lớp (Validation, 17 clips, 19,156 frames)**:
+* Class 0 (Preparation): 2,098 frames (11.0%)
+* Class 1 (Positioning/Adjustment/Alignment): 10,981 frames (57.3%) — lớp đa số
+* Class 2 (Sewing/Joining/Handling): 4,373 frames (22.8%)
+* Class 3 (Inspection/Auxiliary): 1,704 frames (8.9%) — lớp thiểu số
+* **Tổng số ranh giới thực tế (GT Boundaries, internal transitions)**: **612 ranh giới** trên 17 video clips validation
+* **Độ dung sai ranh giới**: $\pm 3$ frames
+
+**Mô hình & Cấu hình**: BaFormer Clean Baseline (`bk_fde_tde`), giống cấu hình mục 1–6 — CE + Mask + Dice + Standard Boundary losses, 5 loss phụ Proposal 04–14 tắt hoàn toàn (`contra/repulse/enc_ce/enc_smooth/mask_tv = 0.0`), `class_weights = [1.0, 1.0, 1.15, 1.25]` (4 lớp, không có background), `batch_size=4`, `base_lr=0.0005`, `early_stopping_patience=45`, 300 epochs max — **hyperparameters giống nhau 100% giữa 5 backbone** để đảm bảo so sánh công bằng.
+
+### 7.2. Bảng Xếp Hạng (5 Backbones trên `dataset`)
+
+| Hạng | Backbone | Loại trích xuất | Feature Dim | Best Ep / Total | Boundary F1@3 (%) | Boundary Recall@3 (%) | Boundary Precision@3 (%) | F1 Mean (%) | F1@10 (%) | F1@25 (%) | F1@50 (%) | Frame Acc (%) | Edit Score | Composite |
+| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| 🥇 | **S3D** | Chunk (3D CNN), 16f@224² | 1024d | 119 / 164 | **29.82%** | **36.93%** | 25.00% | **38.11%** | **53.05%** | **41.84%** | **19.43%** | **55.58%** | **61.08** | **50.24** |
+| 🥈 | **I3D-R50** | Chunk (3D CNN), 8f@224² | 2048d | 122 / 167 | 27.09% | 33.66% | 22.66% | 39.27% | 53.90% | 44.15% | 19.76% | 52.97% | 61.80 | 50.14 |
+| 🥉 | **MViT-v1-B** | Chunk (ViT-temporal), 16f@224² | 768d | 82 / 127 | 22.61% | 21.24% | 24.16% | **40.28%** | 54.33% | 45.20% | **21.31%** | **56.83%** | 59.97 | **51.15** |
+| 4 | **VideoMAE** | Chunk (ViT-temporal), 16f@224² | 768d | **1 / 46** | 24.10%* | 22.88%* | 25.45%* | 22.12% | 35.14% | 23.35% | 7.86% | 48.43% | 53.08 | 39.30 |
+| 5 | **DINOv2** | Frame-by-frame (2D ViT), 1f@224² | 768d | 70 / 115 | 9.09% | 5.39% | 28.95% | 35.75% | 50.70% | 39.75% | 16.82% | 51.92% | 58.19 | 47.33 |
+
+`*` VideoMAE's best epoch is epoch 1 (model never improved over 45 subsequent epochs → early-stopped); its boundary numbers come from that single epoch, not a converged/stable state — see §7.4.2.
+
+### 7.3. Ma Trận Chi Tiết Từng Lớp Hành Động (Per-Class Performance, tại Best Epoch)
+
+| Backbone | Class 0: Preparation<br>*(2,098 frames, 11.0%)* | Class 1: Positioning/Adjustment/Alignment<br>*(10,981 frames, 57.3%)* | Class 2: Sewing/Joining/Handling<br>*(4,373 frames, 22.8%)* | Class 3: Inspection/Auxiliary<br>*(1,704 frames, 8.9%)* |
+| :--- | :---: | :---: | :---: | :---: |
+| **S3D** | P: 38.25% \| R: 19.16% \| **F1: 25.53%** | P: 67.23% \| R: 65.30% \| **F1: 66.25%** | P: 39.14% \| R: **57.79%** \| **F1: 46.67%** 🏆 | P: 28.08% \| R: 16.20% \| **F1: 20.54%** |
+| **I3D-R50** | P: 36.62% \| R: 10.44% \| **F1: 16.25%** | P: 62.86% \| R: **68.64%** \| **F1: 65.62%** | P: 35.98% \| R: 36.91% \| **F1: 36.44%** | P: 23.59% \| R: **28.81%** \| **F1: 25.94%** |
+| **MViT-v1-B** | P: **37.92%** \| R: 9.06% \| **F1: 14.62%** | P: 64.83% \| R: **76.44%** \| **F1: 70.16%** 🏆 | P: **41.26%** \| R: 44.77% \| **F1: 42.94%** | P: 27.34% \| R: 15.43% \| **F1: 19.73%** |
+| **VideoMAE** | P: 6.91% \| R: 1.91% \| **F1: 2.99%** | P: 57.38% \| R: 65.24% \| **F1: 61.06%** | P: 24.35% \| R: 32.24% \| **F1: 27.75%** | P: 23.18% \| R: 4.11% \| **F1: 6.98%** |
+| **DINOv2** | P: 31.37% \| R: 7.63% \| **F1: 12.27%** | P: **64.92%** \| R: 64.03% \| **F1: 64.47%** | P: 38.99% \| R: 40.64% \| **F1: 39.79%** | P: 21.58% \| R: **41.26%** \| **F1: 28.34%** 🏆 |
+
+### 7.4. Phân Tích Hiện Tượng
+
+#### 7.4.1. Backbone Chunk-Based (3D/Temporal) Vượt Trội So Với Frame-by-Frame DINOv2
+Khác với benchmark `dataset_tas_instance` cũ (nơi DINOv2 frame-by-frame thống trị tuyệt đối về Boundary Recall, §3.2), trên tập `dataset` mới, **3 trong 4 backbone chunk-based (S3D, I3D-R50, MViT-v1-B) đều vượt DINOv2 ở hầu hết chỉ số**, đặc biệt là Boundary Recall (21–37% so với 5.39% của DINOv2) và F1 Mean (38–40% so với 35.75%). Nguyên nhân khả dĩ:
+* **ROI mask cropping** đã loại bỏ phần lớn nền/nhiễu không liên quan trước khi đưa vào backbone, nên các đặc trưng không-thời gian (3D CNN/Video Transformer) tận dụng được tốt chuyển động tay/vải trong vùng ROI hẹp hơn, sắc nét hơn.
+* **S3D và I3D-R50** là các mô hình nhận dạng hành động (action recognition) kinh điển, pretrained trên Kinetics-400 — vốn được thiết kế để nắm bắt chính xác các chuyển động lặp lại ngắn (short repeated motions), phù hợp tự nhiên với đặc trưng "các thao tác may lặp lại" của bài toán này.
+* **DINOv2** (image-only pretraining, không có temporal context) phải suy luận chuyển động chỉ dựa trên sự khác biệt giữa 2 frame liên tiếp — khi ROI đã bị crop hẹp, biến động giữa các frame cũng giảm theo, làm giảm độ nhạy ranh giới tương đối so với lúc chạy trên full-frame (so sánh với 49–50% Boundary Recall của DINOv2 trên `dataset_tas_instance` cũ).
+
+#### 7.4.2. VideoMAE (Chunk Mode) Bị Mất Ổn Định — Hội Tụ Ngay Epoch 1, Không Cải Thiện Thêm
+VideoMAE là trường hợp bất thường duy nhất: đạt **Boundary F1 24.10%** ngay tại epoch 1 (cao thứ 2 trong 5 backbone), nhưng sau đó dao động mạnh và KHÔNG BAO GIỜ vượt lại điểm composite của epoch 1 trong suốt 45 epoch tiếp theo → bị early-stopping kích hoạt ở epoch 46. Theo dõi log chi tiết (`log_plain.txt`) cho thấy Boundary F1 rơi về 0.00–11.15% ở phần lớn các epoch sau, không có xu hướng hồi phục rõ ràng. Hai giả thuyết khả dĩ (chưa kiểm chứng sâu, cần thêm probe ở Diagnoser):
+1. **Learning rate quá cao cho đặc trưng VideoMAE-chunk**: VideoMAE sliding-window 16-frame có độ "trơn" (smoothness) thời gian cao hơn S3D/I3D/MViT (tái khẳng định hiện tượng "Temporal Smearing" đã ghi nhận ở §3.2.3 cho VideoMAE frame-by-frame cũ) — khiến gradient ban đầu mạnh nhưng dễ dao động, không ổn định quanh một optimum tốt.
+2. **Mismatch giữa input_dim=768 và đặc trưng cụ thể của backbone**: cùng input_dim 768 với MViT-v1-B nhưng động lực huấn luyện khác biệt hoàn toàn (MViT hội tụ ổn định đến epoch 82) — gợi ý vấn đề nằm ở đặc trưng/pretraining của VideoMAE chứ không phải ở kiến trúc ASFormerEncoder phía sau.
+
+#### 7.4.3. S3D Đạt Boundary F1 Cao Nhất, MViT-v1-B Đạt F1 Mean/Frame Acc/Composite Cao Nhất
+Không có một backbone áp đảo tuyệt đối toàn bộ chỉ số — có sự đánh đổi rõ:
+* **S3D**: tối ưu cho **Boundary Detection** (F1@3 = 29.82%, Recall = 36.93% — cao nhất trong 5 backbone) nhờ Recall ranh giới vượt trội, dù Precision chỉ 25.00%.
+* **MViT-v1-B**: tối ưu cho **chất lượng phân đoạn tổng thể** (F1 Mean 40.28%, Frame Acc 56.83%, Composite Score 51.15 — cao nhất) nhưng Boundary Recall thấp hơn hẳn (21.24%), cho thấy mô hình dự đoán đúng *nhãn lớp* tốt hơn nhưng kém nhạy với *thời điểm chuyển tiếp chính xác*.
+* **I3D-R50**: cân bằng tốt giữa 2 nhóm chỉ số trên, đứng hạng 2 ở cả Boundary F1 (27.09%) và gần như ngang MViT ở F1 Mean (39.27%) — là lựa chọn "an toàn" nếu cần một backbone vừa định vị ranh giới tốt vừa phân loại nhãn ổn.
+
+#### 7.4.4. Nhãn 4-Lớp Không-Background Giúp Class 2 (Sewing) Khá Hơn Hẳn So Với Benchmark Cũ
+So với `dataset_tas_instance` cũ (Class 2 "Adjustment/Prep" F1 chỉ 24–30% ở mọi backbone, §4), trên tập `dataset` mới, **Class 2 (Sewing/Joining/Handling)** đạt F1 36–47% ở cả 5 backbone (cao nhất: S3D 46.67%) — một phần vì support frame của lớp này lớn hơn tương đối (22.8% vs 15.1% cũ), và một phần vì việc loại bỏ nhãn background giúp model không phải học thêm một "lớp nhiễu" chiếm ~1.9% dữ liệu (đã được hấp thụ vào các lớp hành động liền kề, xem §7.1).
+
+### 7.5. Khuyến Nghị Tiếp Theo
+
+1. **Chẩn đoán sâu VideoMAE-chunk instability** (§7.4.2): trước khi kết luận VideoMAE-chunk kém hơn các backbone khác, cần thử giảm `base_lr` (ví dụ 0.0005 → 0.0001–0.0002) hoặc tăng `warmup_epochs`, chạy lại 1 lần để loại trừ khả năng mất ổn định do optimizer/learning-rate thuần túy trước khi quy kết nguyên nhân về đặc trưng.
+2. **Ensemble/Fusion S3D + MViT-v1-B**: do 2 backbone này bù trừ lẫn nhau rất rõ (S3D mạnh Boundary Recall, MViT mạnh Frame Acc/F1 Mean), nên thử nối đặc trưng (`feat_folders: ['features_s3d', 'features_mvit_v1_b']`, concat theo kênh) tương tự cách tiếp cận "Over-eng Fusion (D2+MAE)" ở §2 trên tập `dataset_tas_instance` cũ.
+3. **Tăng Boundary Precision cho S3D**: Precision chỉ 25.00% (678 cắt nhầm / 904 dự đoán) — có thể cân nhắc tăng `peak_prominence`/`min_distance` trong post-processing hoặc tăng `bd_weight` để model tự tin hơn khi báo ranh giới, đổi lại có thể giảm nhẹ Recall.
+4. **So sánh trực tiếp DINOv2 frame-by-frame vs DINOv2-nếu-chunk**: hiện tại DINOv2 là backbone duy nhất không chạy ở chế độ chunk trên tập `dataset`, nên chưa thể tách bạch "DINOv2 kém hơn vì thiếu temporal context" hay "vì input ROI bị crop hẹp hơn" — nếu muốn kết luận chắc chắn hơn ở §7.4.1, cần thử chạy DINOv2 qua `extract_chunk_features.py` ở chế độ sliding-window tương tự VideoMAE để so sánh cùng điều kiện.

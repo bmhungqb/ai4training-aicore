@@ -1,0 +1,18 @@
+{
+  "video_id": "cd11_chuyen1_part2",
+  "fps": 14.737044334411621,
+  "num_frames": 296,
+  "duration": 20.085,
+  "instances": [
+    {
+      "id": 0,
+      "start_frame": 0,
+      "end_frame": 296,
+      "start_time": 0.0,
+      "end_time": 20.085,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    }
+  ],
+  "boundaries": []
+}

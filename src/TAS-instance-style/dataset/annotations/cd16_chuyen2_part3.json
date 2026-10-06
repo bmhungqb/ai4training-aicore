@@ -1,0 +1,109 @@
+{
+  "video_id": "cd16_chuyen2_part3",
+  "fps": 14.578128814697266,
+  "num_frames": 192,
+  "duration": 13.17,
+  "instances": [
+    {
+      "id": 0,
+      "start_frame": 0,
+      "end_frame": 13,
+      "start_time": 0.0,
+      "end_time": 0.892,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 1,
+      "start_frame": 13,
+      "end_frame": 72,
+      "start_time": 0.892,
+      "end_time": 4.939,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 2,
+      "start_frame": 72,
+      "end_frame": 99,
+      "start_time": 4.939,
+      "end_time": 6.791,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 3,
+      "start_frame": 99,
+      "end_frame": 130,
+      "start_time": 6.791,
+      "end_time": 8.917,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 4,
+      "start_frame": 130,
+      "end_frame": 161,
+      "start_time": 8.917,
+      "end_time": 11.044,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 5,
+      "start_frame": 161,
+      "end_frame": 173,
+      "start_time": 11.044,
+      "end_time": 11.867,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 6,
+      "start_frame": 173,
+      "end_frame": 192,
+      "start_time": 11.867,
+      "end_time": 13.17,
+      "class_id": 0,
+      "class_name": "Preparation"
+    }
+  ],
+  "boundaries": [
+    {
+      "frame": 13,
+      "type": "same_class",
+      "left_instance": 0,
+      "right_instance": 1
+    },
+    {
+      "frame": 72,
+      "type": "same_class",
+      "left_instance": 1,
+      "right_instance": 2
+    },
+    {
+      "frame": 99,
+      "type": "same_class",
+      "left_instance": 2,
+      "right_instance": 3
+    },
+    {
+      "frame": 130,
+      "type": "same_class",
+      "left_instance": 3,
+      "right_instance": 4
+    },
+    {
+      "frame": 161,
+      "type": "class_change",
+      "left_instance": 4,
+      "right_instance": 5
+    },
+    {
+      "frame": 173,
+      "type": "class_change",
+      "left_instance": 5,
+      "right_instance": 6
+    }
+  ]
+}

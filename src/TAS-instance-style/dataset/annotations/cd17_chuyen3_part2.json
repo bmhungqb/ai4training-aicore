@@ -1,0 +1,169 @@
+{
+  "video_id": "cd17_chuyen3_part2",
+  "fps": 14.794258117675781,
+  "num_frames": 222,
+  "duration": 15.006,
+  "instances": [
+    {
+      "id": 0,
+      "start_frame": 0,
+      "end_frame": 27,
+      "start_time": 0.0,
+      "end_time": 1.825,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 1,
+      "start_frame": 27,
+      "end_frame": 37,
+      "start_time": 1.825,
+      "end_time": 2.501,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 2,
+      "start_frame": 37,
+      "end_frame": 64,
+      "start_time": 2.501,
+      "end_time": 4.326,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 3,
+      "start_frame": 64,
+      "end_frame": 92,
+      "start_time": 4.326,
+      "end_time": 6.219,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 4,
+      "start_frame": 92,
+      "end_frame": 109,
+      "start_time": 6.219,
+      "end_time": 7.368,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 5,
+      "start_frame": 109,
+      "end_frame": 128,
+      "start_time": 7.368,
+      "end_time": 8.652,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 6,
+      "start_frame": 128,
+      "end_frame": 152,
+      "start_time": 8.652,
+      "end_time": 10.274,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 7,
+      "start_frame": 152,
+      "end_frame": 182,
+      "start_time": 10.274,
+      "end_time": 12.302,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 8,
+      "start_frame": 182,
+      "end_frame": 199,
+      "start_time": 12.302,
+      "end_time": 13.451,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 9,
+      "start_frame": 199,
+      "end_frame": 210,
+      "start_time": 13.451,
+      "end_time": 14.195,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 10,
+      "start_frame": 210,
+      "end_frame": 222,
+      "start_time": 14.195,
+      "end_time": 15.006,
+      "class_id": 0,
+      "class_name": "Preparation"
+    }
+  ],
+  "boundaries": [
+    {
+      "frame": 27,
+      "type": "class_change",
+      "left_instance": 0,
+      "right_instance": 1
+    },
+    {
+      "frame": 37,
+      "type": "class_change",
+      "left_instance": 1,
+      "right_instance": 2
+    },
+    {
+      "frame": 64,
+      "type": "class_change",
+      "left_instance": 2,
+      "right_instance": 3
+    },
+    {
+      "frame": 92,
+      "type": "class_change",
+      "left_instance": 3,
+      "right_instance": 4
+    },
+    {
+      "frame": 109,
+      "type": "class_change",
+      "left_instance": 4,
+      "right_instance": 5
+    },
+    {
+      "frame": 128,
+      "type": "class_change",
+      "left_instance": 5,
+      "right_instance": 6
+    },
+    {
+      "frame": 152,
+      "type": "class_change",
+      "left_instance": 6,
+      "right_instance": 7
+    },
+    {
+      "frame": 182,
+      "type": "same_class",
+      "left_instance": 7,
+      "right_instance": 8
+    },
+    {
+      "frame": 199,
+      "type": "same_class",
+      "left_instance": 8,
+      "right_instance": 9
+    },
+    {
+      "frame": 210,
+      "type": "class_change",
+      "left_instance": 9,
+      "right_instance": 10
+    }
+  ]
+}

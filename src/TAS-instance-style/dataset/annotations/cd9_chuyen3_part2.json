@@ -1,0 +1,18 @@
+{
+  "video_id": "cd9_chuyen3_part2",
+  "fps": 14.613775253295898,
+  "num_frames": 16,
+  "duration": 1.095,
+  "instances": [
+    {
+      "id": 0,
+      "start_frame": 0,
+      "end_frame": 16,
+      "start_time": 0.0,
+      "end_time": 1.095,
+      "class_id": 0,
+      "class_name": "Preparation"
+    }
+  ],
+  "boundaries": []
+}

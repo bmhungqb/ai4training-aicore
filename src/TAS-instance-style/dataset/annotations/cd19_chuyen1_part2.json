@@ -1,0 +1,169 @@
+{
+  "video_id": "cd19_chuyen1_part2",
+  "fps": 14.434611320495605,
+  "num_frames": 523,
+  "duration": 36.232,
+  "instances": [
+    {
+      "id": 0,
+      "start_frame": 0,
+      "end_frame": 10,
+      "start_time": 0.0,
+      "end_time": 0.693,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 1,
+      "start_frame": 10,
+      "end_frame": 22,
+      "start_time": 0.693,
+      "end_time": 1.524,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 2,
+      "start_frame": 22,
+      "end_frame": 204,
+      "start_time": 1.524,
+      "end_time": 14.133,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 3,
+      "start_frame": 204,
+      "end_frame": 215,
+      "start_time": 14.133,
+      "end_time": 14.895,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 4,
+      "start_frame": 215,
+      "end_frame": 241,
+      "start_time": 14.895,
+      "end_time": 16.696,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    },
+    {
+      "id": 5,
+      "start_frame": 241,
+      "end_frame": 256,
+      "start_time": 16.696,
+      "end_time": 17.735,
+      "class_id": 2,
+      "class_name": "Sewing/Joining/Handling"
+    },
+    {
+      "id": 6,
+      "start_frame": 256,
+      "end_frame": 271,
+      "start_time": 17.735,
+      "end_time": 18.774,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 7,
+      "start_frame": 271,
+      "end_frame": 292,
+      "start_time": 18.774,
+      "end_time": 20.229,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 8,
+      "start_frame": 292,
+      "end_frame": 418,
+      "start_time": 20.229,
+      "end_time": 28.958,
+      "class_id": 1,
+      "class_name": "Positioning/Adjustment/Alignment"
+    },
+    {
+      "id": 9,
+      "start_frame": 418,
+      "end_frame": 480,
+      "start_time": 28.958,
+      "end_time": 33.253,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 10,
+      "start_frame": 480,
+      "end_frame": 523,
+      "start_time": 33.253,
+      "end_time": 36.232,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    }
+  ],
+  "boundaries": [
+    {
+      "frame": 10,
+      "type": "same_class",
+      "left_instance": 0,
+      "right_instance": 1
+    },
+    {
+      "frame": 22,
+      "type": "same_class",
+      "left_instance": 1,
+      "right_instance": 2
+    },
+    {
+      "frame": 204,
+      "type": "class_change",
+      "left_instance": 2,
+      "right_instance": 3
+    },
+    {
+      "frame": 215,
+      "type": "class_change",
+      "left_instance": 3,
+      "right_instance": 4
+    },
+    {
+      "frame": 241,
+      "type": "class_change",
+      "left_instance": 4,
+      "right_instance": 5
+    },
+    {
+      "frame": 256,
+      "type": "class_change",
+      "left_instance": 5,
+      "right_instance": 6
+    },
+    {
+      "frame": 271,
+      "type": "class_change",
+      "left_instance": 6,
+      "right_instance": 7
+    },
+    {
+      "frame": 292,
+      "type": "same_class",
+      "left_instance": 7,
+      "right_instance": 8
+    },
+    {
+      "frame": 418,
+      "type": "class_change",
+      "left_instance": 8,
+      "right_instance": 9
+    },
+    {
+      "frame": 480,
+      "type": "class_change",
+      "left_instance": 9,
+      "right_instance": 10
+    }
+  ]
+}

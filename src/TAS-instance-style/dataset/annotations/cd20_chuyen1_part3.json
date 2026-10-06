@@ -1,0 +1,64 @@
+{
+  "video_id": "cd20_chuyen1_part3",
+  "fps": 14.679354667663574,
+  "num_frames": 158,
+  "duration": 10.763,
+  "instances": [
+    {
+      "id": 0,
+      "start_frame": 0,
+      "end_frame": 42,
+      "start_time": 0.0,
+      "end_time": 2.861,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    },
+    {
+      "id": 1,
+      "start_frame": 42,
+      "end_frame": 91,
+      "start_time": 2.861,
+      "end_time": 6.199,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    },
+    {
+      "id": 2,
+      "start_frame": 91,
+      "end_frame": 151,
+      "start_time": 6.199,
+      "end_time": 10.287,
+      "class_id": 0,
+      "class_name": "Preparation"
+    },
+    {
+      "id": 3,
+      "start_frame": 151,
+      "end_frame": 158,
+      "start_time": 10.287,
+      "end_time": 10.763,
+      "class_id": 3,
+      "class_name": "Inspection/Auxiliary"
+    }
+  ],
+  "boundaries": [
+    {
+      "frame": 42,
+      "type": "same_class",
+      "left_instance": 0,
+      "right_instance": 1
+    },
+    {
+      "frame": 91,
+      "type": "class_change",
+      "left_instance": 1,
+      "right_instance": 2
+    },
+    {
+      "frame": 151,
+      "type": "class_change",
+      "left_instance": 2,
+      "right_instance": 3
+    }
+  ]
+}
